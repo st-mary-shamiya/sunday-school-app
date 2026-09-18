@@ -199,6 +199,7 @@
                 <th>الاسم الكامل</th>
                 <th>تاريخ الميلاد</th>
                 <th>العمر</th>
+                <th>التليفون</th>
                 <th>الحضور</th>
                 <th style="width:90px">إجراءات</th>
               </tr>
@@ -301,22 +302,30 @@
     <div class="modal-body">
       <form id="servant-form" novalidate>
         <input type="hidden" id="servant-id">
-        <div class="form-row">
-          <div class="form-group" style="grid-column:1/-1">
-            <label for="servant-name">الاسم الكامل *</label>
-            <input type="text" id="servant-name" placeholder="مثال: مريم بطرس يوسف" autocomplete="off" required>
-          </div>
+        <div class="form-group">
+          <label for="servant-name">الاسم الكامل *</label>
+          <input type="text" id="servant-name" placeholder="مثال: مريم بطرس يوسف" autocomplete="off" required>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="servant-birthdate">تاريخ الميلاد</label>
-            <input type="date" id="servant-birthdate" color-scheme="dark">
+            <input type="date" id="servant-birthdate">
           </div>
+          <div class="form-group">
+            <label for="servant-phone">رقم التليفون</label>
+            <input type="tel" id="servant-phone" placeholder="01xxxxxxxxx">
+          </div>
+        </div>
+        <div class="form-row">
           <div class="form-group">
             <label for="servant-class-select">الفصل المسؤول</label>
             <select id="servant-class-select">
-              <option value="">— لا يوجد —</option>
+              <option value="">— اختر الفصل —</option>
             </select>
+          </div>
+          <div class="form-group">
+            <label for="servant-address">العنوان</label>
+            <input type="text" id="servant-address" placeholder="المنطقة / الشارع">
           </div>
         </div>
         <div class="form-group">
@@ -363,9 +372,9 @@
   </div>
 </div>
 
-<!-- مودال المخدوم -->
+<!-- مودال المخدوم — حقول كاملة -->
 <div class="modal-overlay" id="student-modal" role="dialog" aria-modal="true">
-  <div class="modal">
+  <div class="modal modal-wide">
     <div class="modal-header">
       <h3 id="student-modal-title">➕ إضافة مخدوم جديد</h3>
       <button class="modal-close" aria-label="إغلاق">✕</button>
@@ -373,26 +382,83 @@
     <div class="modal-body">
       <form id="student-form" novalidate>
         <input type="hidden" id="student-id">
+
+        <!-- القسم الأول: البيانات الأساسية -->
+        <div class="form-section-title">📋 البيانات الأساسية</div>
         <div class="form-group">
-          <label for="student-name">الاسم الكامل *</label>
+          <label for="student-name">اسم المخدوم الكامل *</label>
           <input type="text" id="student-name" placeholder="مثال: بيشوي ماجد رمزي" autocomplete="off" required>
         </div>
-        <div class="form-group">
-          <label for="student-birthdate">تاريخ الميلاد</label>
-          <input type="date" id="student-birthdate">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="student-birthdate">تاريخ الميلاد</label>
+            <input type="date" id="student-birthdate">
+          </div>
+          <div class="form-group">
+            <label for="student-phone">تليفون المخدوم</label>
+            <input type="tel" id="student-phone" placeholder="01xxxxxxxxx">
+          </div>
         </div>
+
+        <!-- القسم الثاني: بيانات الأسرة -->
+        <div class="form-section-title">👨‍👩‍👦 بيانات الأسرة</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="student-father">اسم الأب</label>
+            <input type="text" id="student-father" placeholder="مثال: ماجد رمزي عياد">
+          </div>
+          <div class="form-group">
+            <label for="student-father-phone">تليفون الأب</label>
+            <input type="tel" id="student-father-phone" placeholder="01xxxxxxxxx">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="student-mother">اسم الأم</label>
+            <input type="text" id="student-mother" placeholder="مثال: مريم فهيم جرجس">
+          </div>
+          <div class="form-group">
+            <label for="student-mother-phone">تليفون الأم</label>
+            <input type="tel" id="student-mother-phone" placeholder="01xxxxxxxxx">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="student-address">العنوان</label>
+          <input type="text" id="student-address" placeholder="المنطقة / الشارع / رقم المنزل">
+        </div>
+
+        <!-- القسم الثالث: البيانات الدراسية والروحية -->
+        <div class="form-section-title">📚 البيانات الدراسية والروحية</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="student-school">اسم المدرسة</label>
+            <input type="text" id="student-school" placeholder="مثال: مدرسة الأزهر الإبتدائية">
+          </div>
+          <div class="form-group">
+            <label for="student-grade">الفرقة الدراسية</label>
+            <input type="text" id="student-grade" placeholder="مثال: الصف الثالث الابتدائي">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="student-confession">أب الاعتراف</label>
+          <input type="text" id="student-confession" placeholder="مثال: القس بولس إبراهيم">
+        </div>
+
+        <!-- ملاحظات -->
         <div class="form-group">
           <label for="student-notes">ملاحظات</label>
-          <textarea id="student-notes" placeholder="أي ملاحظات إضافية..."></textarea>
+          <textarea id="student-notes" placeholder="أي ملاحظات إضافية عن المخدوم..."></textarea>
         </div>
+
         <div class="modal-actions">
-          <button type="submit" class="btn btn-gold">💾 حفظ</button>
+          <button type="submit" class="btn btn-gold">💾 حفظ البيانات</button>
           <button type="button" class="btn btn-outline modal-cancel">إلغاء</button>
         </div>
       </form>
     </div>
   </div>
 </div>
+
 
 <!-- مودال التأكيد -->
 <div class="modal-overlay" id="confirm-modal" role="dialog" aria-modal="true">

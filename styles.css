@@ -757,3 +757,64 @@ tbody td {
 
 /* ======= PRINT HIDE ======= */
 @media print { #app { display: none !important; } }
+
+/* ======= MODAL WIDE (مودال المخدوم الكامل) ======= */
+.modal-wide {
+  max-width: 680px;
+  width: 95vw;
+}
+
+/* ======= FORM SECTION TITLE ======= */
+.form-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.5px;
+  padding: 10px 0 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+  margin-top: 8px;
+}
+.form-section-title:first-child { margin-top: 0; }
+
+/* ======= CLICKABLE ROW ======= */
+.clickable-row {
+  cursor: pointer;
+  transition: background 0.18s;
+}
+.clickable-row:hover { background: rgba(212,175,55,0.08) !important; }
+
+/* ======= DELETE BUTTON ======= */
+.btn-del:hover {
+  background: rgba(239,83,80,0.2) !important;
+  border-color: var(--danger) !important;
+  color: var(--danger) !important;
+}
+
+/* ======= SEARCH SECTION TITLE ======= */
+.search-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+  margin: 8px 0 6px;
+}
+.search-count {
+  font-size: 13px;
+  color: var(--success);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.search-loading, .search-hint {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-faint);
+  font-size: 14px;
+}
+
+/* ======= STUDENTS TABLE PHONE COL ======= */
+#students-table th:nth-child(5),
+#students-table td:nth-child(5) {
+  font-size: 12px;
+  direction: ltr;
+  text-align: center;
+}

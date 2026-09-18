@@ -2,6 +2,7 @@
 /**
  * app.js — المنطق الكامل لتطبيق مدارس الأحد
  * كنيسة السيدة العذراء مريم بالشامية
+ * ✅ Fixed: string IDs quoted in onclick, removed Number() casts, full student fields
  */
 
 // ============================================================
@@ -13,34 +14,21 @@ const COPTIC_MONTHS_AR = [
 ];
 
 function gregorianToCoptic(date) {
-  // مرجع: 1 توت 1743 = 11 سبتمبر 2026
-  const REF = new Date(2026, 8, 11);
+  const REF = new Date(2026, 8, 11); // 1 توت 1743
   const diffDays = Math.round((date - REF) / 86400000);
-
   let year = 1743, remaining = diffDays;
-
   if (remaining < 0) {
-    while (remaining < 0) {
-      year--;
-      remaining += (year % 4 === 3) ? 366 : 365;
-    }
+    while (remaining < 0) { year--; remaining += (year % 4 === 3) ? 366 : 365; }
   } else {
     while (true) {
       const diy = (year % 4 === 3) ? 366 : 365;
       if (remaining < diy) break;
-      remaining -= diy;
-      year++;
+      remaining -= diy; year++;
     }
   }
-
   let month, day;
-  if (remaining < 360) {
-    month = Math.floor(remaining / 30) + 1;
-    day = (remaining % 30) + 1;
-  } else {
-    month = 13;
-    day = remaining - 360 + 1;
-  }
+  if (remaining < 360) { month = Math.floor(remaining / 30) + 1; day = (remaining % 30) + 1; }
+  else { month = 13; day = remaining - 360 + 1; }
   return { year, month, day, monthName: COPTIC_MONTHS_AR[month - 1] };
 }
 
@@ -65,7 +53,7 @@ function calcAge(birthDate) {
 }
 
 // ============================================================
-// الحالة العامة للتطبيق
+// الحالة العامة
 // ============================================================
 let STATE = {
   tab: 'servants',
@@ -83,23 +71,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     await db.open();
     await initApp();
-
-    // Service Worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
-    }
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
   } catch (err) {
     console.error('خطأ في تهيئة التطبيق:', err);
-    showToast('خطأ في تحميل التطبيق', 'error');
+    showToast('خطأ في تحميل التطبيق — تحقق من الاتصال بالإنترنت', 'error');
   }
 });
 
 async function initApp() {
-  // تحديث التواريخ
   updateDateDisplay();
   setInterval(updateDateDisplay, 60000);
 
-  // تعيين تاريخ الحضور
+  // تاريخ الحضور
   const attInput = document.getElementById('attendance-date');
   attInput.value = STATE.attendanceDate;
   attInput.addEventListener('change', async (e) => {
@@ -147,13 +130,11 @@ async function initApp() {
     if (e.key === 'Enter') doGeneralSearch();
   });
 
-  // مودال الخدام
+  // فورم الخدام
   document.getElementById('servant-form').addEventListener('submit', saveServant);
-
-  // مودال الفصول
+  // فورم الفصول
   document.getElementById('class-form').addEventListener('submit', saveClass);
-
-  // مودال المخدومين
+  // فورم المخدومين
   document.getElementById('student-form').addEventListener('submit', saveStudent);
 
   // إغلاق المودالات
@@ -161,42 +142,35 @@ async function initApp() {
     el.addEventListener('click', closeAllModals);
   });
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) closeAllModals();
-    });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeAllModals(); });
   });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAllModals(); });
 
-  // Escape key
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeAllModals();
-  });
-
-  // تصدير / استيراد
-  document.getElementById('export-data-btn').addEventListener('click', exportData);
-  document.getElementById('import-data-input').addEventListener('change', importData);
-
-  // إعداد مودال التأكيد
+  // مودال التأكيد
   document.getElementById('confirm-ok-btn').addEventListener('click', async () => {
     if (_confirmCallback) { await _confirmCallback(); _confirmCallback = null; }
     closeAllModals();
   });
   document.getElementById('confirm-cancel-btn').addEventListener('click', closeAllModals);
 
-  // تعيين تاريخ بحث الحضور بتاريخ اليوم افتراضياً
+  // تصدير / استيراد
+  document.getElementById('export-data-btn').addEventListener('click', exportData);
+  document.getElementById('import-data-input').addEventListener('change', importData);
+
+  // تاريخ بحث الحضور
   const attSearchDate = document.getElementById('attendance-search-date');
   if (attSearchDate) attSearchDate.value = STATE.attendanceDate;
 
-  // تحميل البيانات الأولية
+  // تحميل أول بيانات
   await loadServants();
 
   // إخفاء شاشة التحميل
-  document.getElementById('loading-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'flex';
+  setTimeout(() => {
+    const ls = document.getElementById('loading-screen');
+    if (ls) { ls.style.opacity = '0'; setTimeout(() => ls.remove(), 400); }
+  }, 800);
 }
 
-// ============================================================
-// التواريخ
-// ============================================================
 function updateDateDisplay() {
   const today = new Date();
   document.getElementById('gregorian-date').textContent =
@@ -215,7 +189,8 @@ async function switchTab(tabName) {
   document.querySelectorAll('.tab-content').forEach(s =>
     s.classList.toggle('active', s.id === `tab-${tabName}`)
   );
-  await refreshCurrentTab();
+  if (tabName === 'classes') { showClassesListView(); await loadClasses(); }
+  else await refreshCurrentTab();
 }
 
 async function refreshCurrentTab() {
@@ -225,7 +200,6 @@ async function refreshCurrentTab() {
       if (STATE.currentClassId) await loadStudents(STATE.currentClassId);
       else await loadClasses();
       break;
-    case 'search': break;
   }
 }
 
@@ -247,17 +221,17 @@ async function renderServants() {
 
   const q = STATE.servantSearch.toLowerCase();
   const classMap = {};
-  _classes.forEach(c => classMap[c.id] = c.name);
+  _classes.forEach(c => classMap[String(c.id)] = c.name);
 
   const filtered = _servants.filter(s => {
     if (!q) return true;
-    return s.name.toLowerCase().includes(q) ||
-           (classMap[s.classId] || '').toLowerCase().includes(q);
+    return (s.name || '').toLowerCase().includes(q) ||
+           (classMap[String(s.classId)] || '').toLowerCase().includes(q);
   });
 
   // إحصائيات
-  const present = _servants.filter(s => attMap[s.id] === 'present').length;
-  const absent  = _servants.filter(s => attMap[s.id] === 'absent').length;
+  const present = _servants.filter(s => attMap[String(s.id)] === 'present').length;
+  const absent  = _servants.filter(s => attMap[String(s.id)] === 'absent').length;
   document.getElementById('servants-total').textContent   = _servants.length;
   document.getElementById('servants-present').textContent = present;
   document.getElementById('servants-absent').textContent  = absent;
@@ -268,17 +242,18 @@ async function renderServants() {
       <div class="empty-state">
         <div class="empty-icon">👤</div>
         <h3>${STATE.servantSearch ? 'لا توجد نتائج' : 'لا يوجد خدام مسجلون'}</h3>
-        <p>${STATE.servantSearch ? 'جرّب كلمة بحث مختلفة' : 'اضغط "إضافة خادم" لبدء التسجيل'}</p>
+        <p>${STATE.servantSearch ? 'جرّب كلمة بحث مختلفة' : 'اضغط «إضافة خادم» لبدء التسجيل'}</p>
       </div>
     </td></tr>`;
     return;
   }
 
   tbody.innerHTML = filtered.map((s, i) => {
-    const status = attMap[s.id];
-    const cls = classMap[s.classId] || '—';
+    const sid    = String(s.id);
+    const status = attMap[sid];
+    const cls    = classMap[String(s.classId)] || '—';
     return `
-      <tr>
+      <tr class="clickable-row" onclick="openServantModal('${sid}')">
         <td class="td-num">${i + 1}</td>
         <td class="td-name">${escHtml(s.name)}</td>
         <td>${formatDateAr(s.birthDate)}</td>
@@ -286,22 +261,22 @@ async function renderServants() {
         <td><span style="background:rgba(212,175,55,0.12);padding:3px 10px;border-radius:20px;font-size:12px;">${escHtml(cls)}</span></td>
         <td>
           <button class="att-toggle att-${status || 'none'}"
-            onclick="toggleAttendance(${s.id},'servant','${status || ''}')"
+            onclick="event.stopPropagation();toggleAttendance('${sid}','servant','${status || ''}')"
             title="انقر لتغيير الحضور">
             ${status === 'present' ? '✓ حاضر' : status === 'absent' ? '✗ غائب' : '— سجّل'}
           </button>
         </td>
         <td>
           <div class="row-actions">
-            <button class="btn btn-glass btn-sm btn-icon" onclick="openServantModal(${s.id})" title="تعديل">✏️</button>
-            <button class="btn btn-glass btn-sm btn-icon" onclick="confirmDeleteServant(${s.id},'${escHtml(s.name)}')" title="حذف">🗑️</button>
+            <button class="btn btn-glass btn-sm btn-icon" onclick="event.stopPropagation();openServantModal('${sid}')" title="تعديل">✏️</button>
+            <button class="btn btn-glass btn-sm btn-icon btn-del" onclick="event.stopPropagation();confirmDeleteServant('${sid}','${escHtml(s.name)}')" title="حذف">🗑️</button>
           </div>
         </td>
       </tr>`;
   }).join('');
 }
 
-// مودال الخادم
+// ─── مودال الخادم ───────────────────────────────────────────
 async function openServantModal(id = null) {
   const modal = document.getElementById('servant-modal');
   const form  = document.getElementById('servant-form');
@@ -309,7 +284,6 @@ async function openServantModal(id = null) {
   form.reset();
   document.getElementById('servant-id').value = '';
 
-  // ملء قائمة الفصول
   const cls = await db.getAll('classes');
   const sel = document.getElementById('servant-class-select');
   sel.innerHTML = '<option value="">— اختر الفصل المسؤول —</option>' +
@@ -319,11 +293,13 @@ async function openServantModal(id = null) {
     title.textContent = '✏️ تعديل بيانات خادم';
     const servant = await db.get('servants', id);
     if (servant) {
-      document.getElementById('servant-id').value = servant.id;
-      document.getElementById('servant-name').value = servant.name;
+      document.getElementById('servant-id').value     = servant.id;
+      document.getElementById('servant-name').value   = servant.name || '';
       document.getElementById('servant-birthdate').value = servant.birthDate || '';
-      sel.value = servant.classId || '';
-      document.getElementById('servant-notes').value = servant.notes || '';
+      sel.value = String(servant.classId || '');
+      document.getElementById('servant-phone').value  = servant.phone || '';
+      document.getElementById('servant-address').value = servant.address || '';
+      document.getElementById('servant-notes').value  = servant.notes || '';
     }
   } else {
     title.textContent = '➕ إضافة خادم جديد';
@@ -337,15 +313,16 @@ async function saveServant(e) {
   const id       = document.getElementById('servant-id').value;
   const name     = document.getElementById('servant-name').value.trim();
   const birthDate= document.getElementById('servant-birthdate').value;
-  const classId  = document.getElementById('servant-class-select').value
-                   ? Number(document.getElementById('servant-class-select').value) : null;
+  const classId  = document.getElementById('servant-class-select').value || null;
+  const phone    = document.getElementById('servant-phone').value.trim();
+  const address  = document.getElementById('servant-address').value.trim();
   const notes    = document.getElementById('servant-notes').value.trim();
 
   if (!name) { showToast('يرجى إدخال الاسم', 'error'); return; }
 
-  const data = { name, birthDate, classId, notes };
+  const data = { name, birthDate, classId, phone, address, notes };
   if (id) {
-    data.id = Number(id);
+    data.id = id; // ✅ string ID — لا Number()
     await db.put('servants', data);
     showToast('✅ تم تحديث بيانات الخادم', 'success');
   } else {
@@ -376,35 +353,36 @@ let _students = [];
 
 async function loadClasses() {
   showClassesListView();
-  _classes = await db.getAll('classes');
+  _classes  = await db.getAll('classes');
   _students = await db.getAll('students');
   const attendanceRecs = await db.getAttendanceForDateAndType(STATE.attendanceDate, 'student');
   const attMap = {};
   attendanceRecs.forEach(r => attMap[r.personId] = r.status);
 
   const grid = document.getElementById('classes-grid');
-
   if (_classes.length === 0) {
     grid.innerHTML = `
       <div class="empty-state" style="grid-column:1/-1">
         <div class="empty-icon">🏫</div>
         <h3>لا توجد فصول مسجلة</h3>
-        <p>اضغط "إضافة فصل" لإنشاء أول فصل</p>
+        <p>اضغط «إضافة فصل» لإنشاء أول فصل</p>
       </div>`;
     return;
   }
 
-  grid.innerHTML = _classes.map(cls => {
-    const clsStudents = _students.filter(s => s.classId === cls.id);
-    const present = clsStudents.filter(s => attMap[s.id] === 'present').length;
-    const absent  = clsStudents.filter(s => attMap[s.id] === 'absent').length;
-    const icons = ['📚','✏️','🎨','🌟','🏆','📖','🎭','🎵'];
-    const icon = icons[cls.id % icons.length];
+  const icons = ['📚','✏️','🎨','🌟','🏆','📖','🎭','🎵','🌈','⭐','🕊️','🙏'];
+
+  grid.innerHTML = _classes.map((cls, idx) => {
+    const cid        = String(cls.id);
+    const clsStudents= _students.filter(s => String(s.classId) === cid);
+    const present    = clsStudents.filter(s => attMap[String(s.id)] === 'present').length;
+    const absent     = clsStudents.filter(s => attMap[String(s.id)] === 'absent').length;
+    const icon       = icons[idx % icons.length];
     return `
-      <div class="class-card" onclick="openClass(${cls.id},'${escHtml(cls.name)}')">
+      <div class="class-card" onclick="openClass('${cid}','${escHtml(cls.name)}')">
         <div class="class-card-actions">
-          <button class="btn btn-glass btn-sm btn-icon" onclick="event.stopPropagation();openClassModal(${cls.id})" title="تعديل">✏️</button>
-          <button class="btn btn-glass btn-sm btn-icon" onclick="event.stopPropagation();confirmDeleteClass(${cls.id},'${escHtml(cls.name)}')" title="حذف">🗑️</button>
+          <button class="btn btn-glass btn-sm btn-icon" onclick="event.stopPropagation();openClassModal('${cid}')" title="تعديل">✏️</button>
+          <button class="btn btn-glass btn-sm btn-icon btn-del" onclick="event.stopPropagation();confirmDeleteClass('${cid}','${escHtml(cls.name)}')" title="حذف">🗑️</button>
         </div>
         <div class="class-card-icon">${icon}</div>
         <div class="class-card-name">${escHtml(cls.name)}</div>
@@ -426,7 +404,7 @@ function showClassesListView() {
 }
 
 async function openClass(classId, className) {
-  STATE.currentClassId = classId;
+  STATE.currentClassId   = classId;
   STATE.currentClassName = className;
   document.getElementById('classes-list-view').style.display = 'none';
   document.getElementById('class-detail-view').style.display = 'block';
@@ -436,10 +414,7 @@ async function openClass(classId, className) {
   await loadStudents(classId);
 }
 
-function backToClasses() {
-  showClassesListView();
-  loadClasses();
-}
+function backToClasses() { showClassesListView(); loadClasses(); }
 
 async function loadStudents(classId) {
   _students = await db.getByIndex('students', 'classId', classId);
@@ -450,73 +425,72 @@ async function renderStudents() {
   if (!STATE.currentClassId) return;
   const attendanceRecs = await db.getAttendanceForDateAndType(STATE.attendanceDate, 'student');
   const clsAttMap = {};
-  attendanceRecs.filter(r => {
-    const st = _students.find(s => s.id === r.personId);
-    return !!st;
-  }).forEach(r => clsAttMap[r.personId] = r.status);
+  attendanceRecs.forEach(r => {
+    if (_students.find(s => String(s.id) === String(r.personId))) clsAttMap[r.personId] = r.status;
+  });
 
   const q = STATE.studentSearch.toLowerCase();
-  const filtered = _students.filter(s => !q || s.name.toLowerCase().includes(q));
+  const filtered = _students.filter(s => !q || (s.name || '').toLowerCase().includes(q));
 
-  // إحصائيات
-  const present = _students.filter(s => clsAttMap[s.id] === 'present').length;
-  const absent  = _students.filter(s => clsAttMap[s.id] === 'absent').length;
+  const present = _students.filter(s => clsAttMap[String(s.id)] === 'present').length;
+  const absent  = _students.filter(s => clsAttMap[String(s.id)] === 'absent').length;
   document.getElementById('students-total').textContent   = _students.length;
   document.getElementById('students-present').textContent = present;
   document.getElementById('students-absent').textContent  = absent;
 
   const tbody = document.getElementById('students-tbody');
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6">
+    tbody.innerHTML = `<tr><td colspan="7">
       <div class="empty-state">
         <div class="empty-icon">🧒</div>
         <h3>${STATE.studentSearch ? 'لا توجد نتائج' : 'لا يوجد مخدومون في هذا الفصل'}</h3>
-        <p>${STATE.studentSearch ? 'جرّب كلمة بحث مختلفة' : 'اضغط "إضافة مخدوم" لبدء التسجيل'}</p>
+        <p>${STATE.studentSearch ? 'جرّب كلمة بحث مختلفة' : 'اضغط «إضافة مخدوم» لبدء التسجيل'}</p>
       </div>
     </td></tr>`;
     return;
   }
 
   tbody.innerHTML = filtered.map((s, i) => {
-    const status = clsAttMap[s.id];
+    const sid    = String(s.id);
+    const status = clsAttMap[sid];
     return `
-      <tr>
+      <tr class="clickable-row" onclick="openStudentModal('${sid}')">
         <td class="td-num">${i + 1}</td>
         <td class="td-name">${escHtml(s.name)}</td>
         <td>${formatDateAr(s.birthDate)}</td>
         <td>${calcAge(s.birthDate)}</td>
+        <td>${escHtml(s.phone || '—')}</td>
         <td>
           <button class="att-toggle att-${status || 'none'}"
-            onclick="toggleAttendance(${s.id},'student','${status || ''}')"
+            onclick="event.stopPropagation();toggleAttendance('${sid}','student','${status || ''}')"
             title="انقر لتغيير الحضور">
             ${status === 'present' ? '✓ حاضر' : status === 'absent' ? '✗ غائب' : '— سجّل'}
           </button>
         </td>
         <td>
           <div class="row-actions">
-            <button class="btn btn-glass btn-sm btn-icon" onclick="openStudentModal(${s.id})" title="تعديل">✏️</button>
-            <button class="btn btn-glass btn-sm btn-icon" onclick="confirmDeleteStudent(${s.id},'${escHtml(s.name)}')" title="حذف">🗑️</button>
+            <button class="btn btn-glass btn-sm btn-icon" onclick="event.stopPropagation();openStudentModal('${sid}')" title="تعديل">✏️</button>
+            <button class="btn btn-glass btn-sm btn-icon btn-del" onclick="event.stopPropagation();confirmDeleteStudent('${sid}','${escHtml(s.name)}')" title="حذف">🗑️</button>
           </div>
         </td>
       </tr>`;
   }).join('');
 }
 
-// مودال الفصل
+// ─── مودال الفصل ────────────────────────────────────────────
 async function openClassModal(id = null) {
   const modal = document.getElementById('class-modal');
   const form  = document.getElementById('class-form');
   form.reset();
   document.getElementById('class-id').value = '';
   document.getElementById('class-modal-title').textContent = id ? '✏️ تعديل الفصل' : '➕ إضافة فصل جديد';
-
   if (id) {
     const cls = await db.get('classes', id);
     if (cls) {
-      document.getElementById('class-id').value = cls.id;
-      document.getElementById('class-name').value = cls.name;
-      document.getElementById('class-age-group').value = cls.ageGroup || '';
-      document.getElementById('class-notes').value = cls.notes || '';
+      document.getElementById('class-id').value       = cls.id;
+      document.getElementById('class-name').value     = cls.name;
+      document.getElementById('class-age-group').value= cls.ageGroup || '';
+      document.getElementById('class-notes').value    = cls.notes || '';
     }
   }
   modal.classList.add('open');
@@ -529,12 +503,10 @@ async function saveClass(e) {
   const name     = document.getElementById('class-name').value.trim();
   const ageGroup = document.getElementById('class-age-group').value.trim();
   const notes    = document.getElementById('class-notes').value.trim();
-
   if (!name) { showToast('يرجى إدخال اسم الفصل', 'error'); return; }
-
   const data = { name, ageGroup, notes };
   if (id) {
-    data.id = Number(id);
+    data.id = id; // ✅ string ID
     await db.put('classes', data);
     showToast('✅ تم تحديث الفصل', 'success');
   } else {
@@ -550,35 +522,37 @@ async function confirmDeleteClass(id, name) {
   const sub = students.length > 0
     ? `سيتم حذف ${students.length} مخدوم مرتبط بهذا الفصل أيضاً.`
     : 'الفصل فارغ.';
-  openConfirmModal(
-    '⚠️ حذف فصل',
-    `هل أنت متأكد من حذف فصل "${name}"؟`,
-    sub,
-    async () => {
-      // حذف المخدومين أولاً
-      for (const st of students) await db.delete('students', st.id);
-      await db.delete('classes', id);
-      showToast('🗑️ تم حذف الفصل', 'info');
-      await loadClasses();
-    }
-  );
+  openConfirmModal('⚠️ حذف فصل', `هل أنت متأكد من حذف فصل "${name}"؟`, sub, async () => {
+    for (const st of students) await db.delete('students', st.id);
+    await db.delete('classes', id);
+    showToast('🗑️ تم حذف الفصل', 'info');
+    await loadClasses();
+  });
 }
 
-// مودال المخدوم
+// ─── مودال المخدوم (حقول كاملة) ────────────────────────────
 async function openStudentModal(id = null) {
   const modal = document.getElementById('student-modal');
   const form  = document.getElementById('student-form');
   form.reset();
   document.getElementById('student-id').value = '';
   document.getElementById('student-modal-title').textContent = id ? '✏️ تعديل بيانات مخدوم' : '➕ إضافة مخدوم جديد';
-
   if (id) {
     const student = await db.get('students', id);
     if (student) {
-      document.getElementById('student-id').value = student.id;
-      document.getElementById('student-name').value = student.name;
-      document.getElementById('student-birthdate').value = student.birthDate || '';
-      document.getElementById('student-notes').value = student.notes || '';
+      document.getElementById('student-id').value           = student.id;
+      document.getElementById('student-name').value         = student.name || '';
+      document.getElementById('student-father').value       = student.father || '';
+      document.getElementById('student-mother').value       = student.mother || '';
+      document.getElementById('student-birthdate').value    = student.birthDate || '';
+      document.getElementById('student-phone').value        = student.phone || '';
+      document.getElementById('student-father-phone').value = student.fatherPhone || '';
+      document.getElementById('student-mother-phone').value = student.motherPhone || '';
+      document.getElementById('student-address').value      = student.address || '';
+      document.getElementById('student-school').value       = student.school || '';
+      document.getElementById('student-grade').value        = student.grade || '';
+      document.getElementById('student-confession').value   = student.confessionFather || '';
+      document.getElementById('student-notes').value        = student.notes || '';
     }
   }
   modal.classList.add('open');
@@ -587,22 +561,35 @@ async function openStudentModal(id = null) {
 
 async function saveStudent(e) {
   e.preventDefault();
-  const id        = document.getElementById('student-id').value;
-  const name      = document.getElementById('student-name').value.trim();
-  const birthDate = document.getElementById('student-birthdate').value;
-  const notes     = document.getElementById('student-notes').value.trim();
+  const id           = document.getElementById('student-id').value;
+  const name         = document.getElementById('student-name').value.trim();
+  const father       = document.getElementById('student-father').value.trim();
+  const mother       = document.getElementById('student-mother').value.trim();
+  const birthDate    = document.getElementById('student-birthdate').value;
+  const phone        = document.getElementById('student-phone').value.trim();
+  const fatherPhone  = document.getElementById('student-father-phone').value.trim();
+  const motherPhone  = document.getElementById('student-mother-phone').value.trim();
+  const address      = document.getElementById('student-address').value.trim();
+  const school       = document.getElementById('student-school').value.trim();
+  const grade        = document.getElementById('student-grade').value.trim();
+  const confessionFather = document.getElementById('student-confession').value.trim();
+  const notes        = document.getElementById('student-notes').value.trim();
 
-  if (!name) { showToast('يرجى إدخال الاسم', 'error'); return; }
+  if (!name) { showToast('يرجى إدخال اسم المخدوم', 'error'); return; }
   if (!STATE.currentClassId) { showToast('خطأ: لم يتم تحديد الفصل', 'error'); return; }
 
-  const data = { name, birthDate, classId: STATE.currentClassId, notes };
+  const data = {
+    name, father, mother, birthDate, phone, fatherPhone, motherPhone,
+    address, school, grade, confessionFather, notes,
+    classId: STATE.currentClassId
+  };
   if (id) {
-    data.id = Number(id);
+    data.id = id; // ✅ string ID
     await db.put('students', data);
     showToast('✅ تم تحديث بيانات المخدوم', 'success');
   } else {
     await db.add('students', data);
-    showToast('✅ تم إضافة المخدوم', 'success');
+    showToast('✅ تم إضافة المخدوم بنجاح', 'success');
   }
   closeAllModals();
   await loadStudents(STATE.currentClassId);
@@ -611,7 +598,7 @@ async function saveStudent(e) {
 async function confirmDeleteStudent(id, name) {
   openConfirmModal(
     '⚠️ حذف مخدوم',
-    `هل أنت متأكد من حذف "${name}"؟`,
+    `هل أنت متأكد من حذف المخدوم "${name}"؟`,
     'لا يمكن التراجع عن هذا الإجراء',
     async () => {
       await db.delete('students', id);
@@ -626,18 +613,14 @@ async function confirmDeleteStudent(id, name) {
 // ============================================================
 async function toggleAttendance(personId, personType, currentStatus) {
   const nextStatus = currentStatus === 'present' ? 'absent'
-                   : currentStatus === 'absent'  ? ''
-                   :                               'present';
-
-  if (nextStatus === '') {
-    // إزالة التسجيل: نعيد تعيينه كـ "لم يسجل" (نحذف السجل لو موجود)
-    // للتبسيط نحفظ قيمة فارغة لن تُعرض
+                   : currentStatus === 'absent'  ? null
+                   : 'present';
+  if (nextStatus === null) {
     const existing = await db.getAttendance(personId, personType, STATE.attendanceDate);
     if (existing) await db.delete('attendance', existing.id);
   } else {
     await db.setAttendance(personId, personType, STATE.attendanceDate, nextStatus);
   }
-
   if (personType === 'servant') await renderServants();
   else await renderStudents();
 }
@@ -648,106 +631,66 @@ async function toggleAttendance(personId, personType, currentStatus) {
 async function doGeneralSearch() {
   const activeType = document.querySelector('.search-type-btn.active')?.dataset.type || 'name';
   const resultsArea = document.getElementById('search-results-area');
-  resultsArea.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted)">⏳ جارٍ البحث...</div>';
+  resultsArea.innerHTML = '<div class="search-loading">⏳ جارٍ البحث...</div>';
 
   try {
-    let results = { servants: [], students: [] };
-
+    let results;
     if (activeType === 'name') {
       const q = document.getElementById('general-search-name').value.trim();
-      if (!q) { showToast('يرجى إدخال اسم للبحث', 'error'); resultsArea.innerHTML = ''; return; }
-      const searchServants = document.getElementById('search-scope-servants').checked;
-      const searchStudents = document.getElementById('search-scope-students').checked;
-      const res = await db.searchByName(q);
-      if (!searchServants) res.servants = [];
-      if (!searchStudents) res.students = [];
-      results = res;
-
+      if (!q) { resultsArea.innerHTML = '<div class="search-hint">اكتب اسماً للبحث عنه</div>'; return; }
+      const scopeServants = document.getElementById('search-scope-servants').checked;
+      const scopeStudents = document.getElementById('search-scope-students').checked;
+      results = await db.searchByName(q);
+      if (!scopeServants) results.servants = [];
+      if (!scopeStudents) results.students = [];
     } else if (activeType === 'birthdate') {
       const q = document.getElementById('general-search-birthdate').value.trim();
-      if (!q) { showToast('يرجى إدخال جزء من تاريخ الميلاد', 'error'); resultsArea.innerHTML = ''; return; }
+      if (!q) { resultsArea.innerHTML = '<div class="search-hint">أدخل جزءاً من تاريخ الميلاد</div>'; return; }
       results = await db.searchByBirthdate(q);
-
-    } else if (activeType === 'attendance') {
-      const attDate   = document.getElementById('attendance-search-date').value || STATE.attendanceDate;
-      const attStatus = document.getElementById('attendance-search-status').value;
-      results = await db.searchByAttendance(attDate, attStatus);
+    } else {
+      const status = document.getElementById('attendance-search-status').value;
+      const date   = document.getElementById('attendance-search-date').value || STATE.attendanceDate;
+      results = await db.searchByAttendance(date, status);
     }
-
     renderSearchResults(results, activeType);
   } catch (err) {
-    resultsArea.innerHTML = '<div class="no-results">❌ حدث خطأ أثناء البحث</div>';
     console.error(err);
+    resultsArea.innerHTML = `<div class="search-hint" style="color:var(--danger)">❌ خطأ في البحث: ${err.message}</div>`;
   }
 }
 
-async function renderSearchResults(results, type) {
+function renderSearchResults(results, type) {
   const area = document.getElementById('search-results-area');
-  const { servants, students } = results;
-  const total = servants.length + students.length;
-
+  const total = (results.servants?.length || 0) + (results.students?.length || 0);
   if (total === 0) {
-    area.innerHTML = '<div class="no-results">🔍 لا توجد نتائج مطابقة</div>';
+    area.innerHTML = `<div class="search-hint">لم يتم العثور على نتائج</div>`;
     return;
   }
-
-  // جلب أسماء الفصول
-  const classes = await db.getAll('classes');
-  const classMap = {};
-  classes.forEach(c => classMap[c.id] = c.name);
-
-  let html = `<div style="margin-bottom:12px;font-size:13px;color:var(--text-muted)">وُجد <strong style="color:var(--gold)">${total}</strong> نتيجة</div>`;
-
-  if (servants.length > 0) {
-    html += `
-      <div class="search-result-section">
-        <div class="search-result-title">
-          👤 الخدام
-          <span class="search-result-badge">${servants.length}</span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>#</th><th>الاسم</th><th>تاريخ الميلاد</th><th>العمر</th><th>الفصل المسؤول</th></tr></thead>
-            <tbody>
-              ${servants.map((s, i) => `
-                <tr>
-                  <td class="td-num">${i + 1}</td>
-                  <td class="td-name">${escHtml(s.name)}</td>
-                  <td>${formatDateAr(s.birthDate)}</td>
-                  <td>${calcAge(s.birthDate)}</td>
-                  <td>${classMap[s.classId] ? escHtml(classMap[s.classId]) : '—'}</td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>`;
+  let html = `<div class="search-count">✅ ${total} نتيجة</div>`;
+  if (results.servants?.length) {
+    html += `<div class="search-section-title">👤 الخدام (${results.servants.length})</div>`;
+    html += `<div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>الاسم</th><th>تاريخ الميلاد</th><th>العمر</th><th>الفصل</th></tr></thead>
+      <tbody>${results.servants.map((s, i) => `
+        <tr class="clickable-row" onclick="switchTab('servants')">
+          <td>${i+1}</td><td class="td-name">${escHtml(s.name)}</td>
+          <td>${formatDateAr(s.birthDate)}</td><td>${calcAge(s.birthDate)}</td>
+          <td>${escHtml(s.classId || '—')}</td>
+        </tr>`).join('')}
+      </tbody></table></div>`;
   }
-
-  if (students.length > 0) {
-    html += `
-      <div class="search-result-section">
-        <div class="search-result-title">
-          🧒 المخدومون
-          <span class="search-result-badge">${students.length}</span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>#</th><th>الاسم</th><th>تاريخ الميلاد</th><th>العمر</th><th>الفصل</th></tr></thead>
-            <tbody>
-              ${students.map((s, i) => `
-                <tr>
-                  <td class="td-num">${i + 1}</td>
-                  <td class="td-name">${escHtml(s.name)}</td>
-                  <td>${formatDateAr(s.birthDate)}</td>
-                  <td>${calcAge(s.birthDate)}</td>
-                  <td>${classMap[s.classId] ? escHtml(classMap[s.classId]) : '—'}</td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>`;
+  if (results.students?.length) {
+    html += `<div class="search-section-title" style="margin-top:16px">🧒 المخدومون (${results.students.length})</div>`;
+    html += `<div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>الاسم</th><th>تاريخ الميلاد</th><th>العمر</th><th>الفصل</th></tr></thead>
+      <tbody>${results.students.map((s, i) => `
+        <tr>
+          <td>${i+1}</td><td class="td-name">${escHtml(s.name)}</td>
+          <td>${formatDateAr(s.birthDate)}</td><td>${calcAge(s.birthDate)}</td>
+          <td>${escHtml(s.classId || '—')}</td>
+        </tr>`).join('')}
+      </tbody></table></div>`;
   }
-
   area.innerHTML = html;
 }
 
@@ -772,55 +715,142 @@ function closeAllModals() {
 }
 
 // ============================================================
-// Toast إشعارات
-// ============================================================
-let _toastTimer = null;
-function showToast(msg, type = 'info') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = `toast show ${type}`;
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
-}
-
-// ============================================================
-// تصدير / استيراد البيانات
+// تصدير / استيراد
 // ============================================================
 async function exportData() {
-  const data = await db.exportAll();
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url;
-  a.download = `مدارس-الاحد-نسخة-احتياطية-${STATE.attendanceDate}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('✅ تم تصدير البيانات بنجاح', 'success');
+  try {
+    showToast('⏳ جارٍ تصدير البيانات...', 'info');
+    const data = await db.exportAll();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `sunday-school-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('✅ تم تصدير البيانات بنجاح', 'success');
+  } catch (err) {
+    showToast('❌ خطأ في التصدير: ' + err.message, 'error');
+  }
 }
 
 async function importData(e) {
   const file = e.target.files[0];
   if (!file) return;
   try {
+    showToast('⏳ جارٍ استيراد البيانات...', 'info');
     const text = await file.text();
     const data = JSON.parse(text);
-    if (!data.servants || !data.classes) throw new Error('صيغة الملف غير صحيحة');
-
     openConfirmModal(
-      '📥 استيراد بيانات',
-      'سيتم استبدال جميع البيانات الحالية بالبيانات المستوردة',
-      'هل تريد المتابعة؟',
+      '⚠️ استيراد بيانات',
+      'سيتم استبدال جميع البيانات الحالية بالملف المستورد',
+      'هل أنت متأكد؟',
       async () => {
         await db.importAll(data);
-        showToast('✅ تم استيراد البيانات بنجاح', 'success');
-        await loadServants();
-        await loadClasses();
+        showToast('✅ تم الاستيراد بنجاح', 'success');
+        await refreshCurrentTab();
       }
     );
   } catch (err) {
-    showToast('❌ خطأ في ملف البيانات', 'error');
+    showToast('❌ ملف غير صالح: ' + err.message, 'error');
   }
   e.target.value = '';
+}
+
+// ============================================================
+// طباعة التقارير
+// ============================================================
+async function printServantsReport(date) {
+  const [servants, classes, attendanceRecs] = await Promise.all([
+    db.getAll('servants'), db.getAll('classes'),
+    db.getAttendanceForDateAndType(date, 'servant')
+  ]);
+  const attMap = {}; attendanceRecs.forEach(r => attMap[r.personId] = r.status);
+  const classMap = {}; classes.forEach(c => classMap[String(c.id)] = c.name);
+  const rows = servants.map((s, i) => `
+    <tr>
+      <td>${i+1}</td><td>${escHtml(s.name)}</td>
+      <td>${formatDateAr(s.birthDate)}</td><td>${calcAge(s.birthDate)}</td>
+      <td>${escHtml(classMap[String(s.classId)] || '—')}</td>
+      <td>${escHtml(s.phone || '—')}</td>
+      <td class="${attMap[String(s.id)] === 'present' ? 'att-p' : attMap[String(s.id)] === 'absent' ? 'att-a' : 'att-n'}">
+        ${attMap[String(s.id)] === 'present' ? '✓ حاضر' : attMap[String(s.id)] === 'absent' ? '✗ غائب' : '—'}
+      </td>
+    </tr>`).join('');
+  openPrintWindow('تقرير الخدام', date, rows,
+    '<th>#</th><th>الاسم</th><th>تاريخ الميلاد</th><th>العمر</th><th>الفصل</th><th>التليفون</th><th>الحضور</th>',
+    servants.length, servants.filter(s => attMap[String(s.id)] === 'present').length,
+    servants.filter(s => attMap[String(s.id)] === 'absent').length);
+}
+
+async function printClassReport(classId, className, date) {
+  const [students, attendanceRecs] = await Promise.all([
+    db.getByIndex('students', 'classId', classId),
+    db.getAttendanceForDateAndType(date, 'student')
+  ]);
+  const attMap = {}; attendanceRecs.forEach(r => attMap[r.personId] = r.status);
+  const rows = students.map((s, i) => `
+    <tr>
+      <td>${i+1}</td><td>${escHtml(s.name)}</td><td>${escHtml(s.father || '—')}</td>
+      <td>${formatDateAr(s.birthDate)}</td><td>${calcAge(s.birthDate)}</td>
+      <td>${escHtml(s.phone || s.fatherPhone || '—')}</td>
+      <td class="${attMap[String(s.id)] === 'present' ? 'att-p' : attMap[String(s.id)] === 'absent' ? 'att-a' : 'att-n'}">
+        ${attMap[String(s.id)] === 'present' ? '✓ حاضر' : attMap[String(s.id)] === 'absent' ? '✗ غائب' : '—'}
+      </td>
+    </tr>`).join('');
+  openPrintWindow(`تقرير فصل: ${className}`, date, rows,
+    '<th>#</th><th>الاسم</th><th>اسم الأب</th><th>تاريخ الميلاد</th><th>العمر</th><th>التليفون</th><th>الحضور</th>',
+    students.length, students.filter(s => attMap[String(s.id)] === 'present').length,
+    students.filter(s => attMap[String(s.id)] === 'absent').length);
+}
+
+async function printAllClassesReport(date) {
+  const classes = await db.getAll('classes');
+  for (const cls of classes) await printClassReport(String(cls.id), cls.name, date);
+}
+
+function openPrintWindow(title, date, rows, headers, total, present, absent) {
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl"><head>
+  <meta charset="UTF-8"><title>${title}</title>
+  <style>
+    body{font-family:'Cairo',sans-serif;margin:20px;direction:rtl;color:#111}
+    h1{text-align:center;color:#8B5E0A;font-size:18px}
+    .sub{text-align:center;color:#555;font-size:12px;margin-bottom:16px}
+    .stats{display:flex;gap:20px;justify-content:center;margin:12px 0}
+    .stat{background:#f5f5f5;padding:8px 20px;border-radius:8px;text-align:center}
+    .stat b{font-size:22px;display:block}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{background:#8B5E0A;color:#fff;padding:8px;text-align:center}
+    td{padding:6px;border:1px solid #ddd;text-align:center}
+    tr:nth-child(even){background:#fafaf0}
+    .att-p{color:green;font-weight:bold} .att-a{color:red;font-weight:bold}
+    @media print{button{display:none}}
+  </style></head><body>
+  <h1>✝ بسم الثالوث القدوس</h1>
+  <div class="sub">كنيسة السيدة العذراء مريم بالشامية — خدمة مدارس الأحد الابتدائي</div>
+  <div class="sub">${title} — ${formatDateAr(date)}</div>
+  <div class="stats">
+    <div class="stat"><b>${total}</b>الإجمالي</div>
+    <div class="stat" style="color:green"><b>${present}</b>حاضر</div>
+    <div class="stat" style="color:red"><b>${absent}</b>غائب</div>
+  </div>
+  <table><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>
+  <br><button onclick="window.print()" style="width:100%;padding:12px;background:#8B5E0A;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;font-family:Cairo,sans-serif">🖨️ طباعة / حفظ PDF</button>
+  </body></html>`);
+  w.document.close();
+}
+
+// ============================================================
+// Toast إشعارات
+// ============================================================
+let _toastTimer = null;
+function showToast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast toast-${type} show`;
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
 }
 
 // ============================================================
@@ -828,6 +858,5 @@ async function importData(e) {
 // ============================================================
 function escHtml(str) {
   if (!str) return '';
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-
