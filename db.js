@@ -1,7 +1,7 @@
 /**
- * db.js — قاعدة بيانات Firebase Firestore
+ * db.js — Firebase Firestore Database
  * كنيسة السيدة العذراء مريم بالشامية - مدارس الأحد
- * تعمل على جميع الأجهزة مع مزامنة فورية للبيانات السحابية
+ * ✅ No composite indexes required — all multi-field filtering done in JS
  */
 
 class SundaySchoolDB {
@@ -16,29 +16,28 @@ class SundaySchoolDB {
     const { getFirestore } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
     this._db = getFirestore(window.firebaseApp);
     this._initialized = true;
-    console.log('✅ Firebase Firestore جاهز');
+    console.log('✅ Firestore ready');
   }
 
   _waitForFirebase(timeout = 15000) {
     return new Promise((resolve, reject) => {
       if (window.firebaseApp) { resolve(); return; }
-      const start = Date.now();
+      const t = Date.now();
       const check = setInterval(() => {
         if (window.firebaseApp) { clearInterval(check); resolve(); }
-        else if (Date.now() - start > timeout) {
+        else if (Date.now() - t > timeout) {
           clearInterval(check);
-          reject(new Error('Firebase لم يتهيأ. تحقق من firebase-config.js'));
+          reject(new Error('Firebase لم يتهيأ — تحقق من firebase-config.js'));
         }
       }, 100);
     });
   }
 
-  // توليد ID فريد
   _newId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
 
-  // ─── CRUD عام ───────────────────────────────────────
+  // ─── CRUD عام ─────────────────────────────────────────────
 
   async add(storeName, data) {
     const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
@@ -72,66 +71,58 @@ class SundaySchoolDB {
     await deleteDoc(doc(this._db, storeName, String(id)));
   }
 
+  // ✅ Single-field query — no composite index needed
   async getByIndex(storeName, indexName, value) {
     const { getDocs, collection, query, where } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
-    const q = query(collection(this._db, storeName), where(indexName, '==', value));
+    const q = query(collection(this._db, storeName), where(indexName, '==', String(value)));
     const snap = await getDocs(q);
     return snap.docs.map(d => d.data());
   }
 
   async count(storeName) {
-    const all = await this.getAll(storeName);
-    return all.length;
+    return (await this.getAll(storeName)).length;
   }
 
-  // ─── الحضور ─────────────────────────────────────────
+  // ─── الحضور ───────────────────────────────────────────────
 
-  _attendanceId(personId, personType, date) {
+  _attId(personId, personType, date) {
     return `${personType}_${personId}_${date}`;
   }
 
   async getAttendance(personId, personType, date) {
-    return this.get('attendance', this._attendanceId(personId, personType, date));
+    return this.get('attendance', this._attId(personId, personType, date));
   }
 
-  async setAttendance(personId, personType, date, status, notes = '') {
-    const id = this._attendanceId(personId, personType, date);
+  async setAttendance(personId, personType, date, status) {
+    const id = this._attId(personId, personType, date);
     const record = {
       id,
       personId: String(personId),
       personType,
       date,
       status,
-      notes,
-      updatedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString()
+      updatedAt: new Date().toISOString()
     };
     return this.put('attendance', record);
   }
 
+  // ✅ Single where('date') — no composite index — filter personType in JS
   async getAttendanceForDateAndType(date, personType) {
     const { getDocs, collection, query, where } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
-    const q = query(
-      collection(this._db, 'attendance'),
-      where('date', '==', date),
-      where('personType', '==', personType)
-    );
+    const q = query(collection(this._db, 'attendance'), where('date', '==', date));
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data());
+    return snap.docs.map(d => d.data()).filter(r => r.personType === personType);
   }
 
+  // ✅ Single where('personId') — filter personType in JS
   async getAllAttendanceForPerson(personId, personType) {
     const { getDocs, collection, query, where } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
-    const q = query(
-      collection(this._db, 'attendance'),
-      where('personId', '==', String(personId)),
-      where('personType', '==', personType)
-    );
+    const q = query(collection(this._db, 'attendance'), where('personId', '==', String(personId)));
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data());
+    return snap.docs.map(d => d.data()).filter(r => r.personType === personType);
   }
 
-  // ─── تصدير واستيراد ─────────────────────────────────
+  // ─── تصدير / استيراد ──────────────────────────────────────
 
   async exportAll() {
     const [servants, classes, students, attendance] = await Promise.all([
@@ -140,16 +131,11 @@ class SundaySchoolDB {
       this.getAll('students'),
       this.getAll('attendance')
     ]);
-    return {
-      version: 2,
-      exportDate: new Date().toISOString(),
-      servants, classes, students, attendance
-    };
+    return { version: 2, exportDate: new Date().toISOString(), servants, classes, students, attendance };
   }
 
   async importAll(data) {
-    const stores = ['servants', 'classes', 'students', 'attendance'];
-    for (const storeName of stores) {
+    for (const storeName of ['servants', 'classes', 'students', 'attendance']) {
       if (!data[storeName]) continue;
       const existing = await this.getAll(storeName);
       for (const item of existing) await this.delete(storeName, item.id);
@@ -157,7 +143,7 @@ class SundaySchoolDB {
     }
   }
 
-  // ─── بحث ────────────────────────────────────────────
+  // ─── بحث ──────────────────────────────────────────────────
 
   async searchByName(queryStr) {
     const q = queryStr.trim().toLowerCase();
@@ -177,6 +163,7 @@ class SundaySchoolDB {
     };
   }
 
+  // ✅ Single where('date') — filter by status in JS — no composite index
   async searchByAttendance(date, status) {
     const { getDocs, collection, query, where } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
     const [servants, students, attSnap] = await Promise.all([
@@ -184,20 +171,18 @@ class SundaySchoolDB {
       this.getAll('students'),
       getDocs(query(collection(this._db, 'attendance'), where('date', '==', date)))
     ]);
-
     const attendanceRecs = attSnap.docs.map(d => d.data());
     const servantAtt = attendanceRecs.filter(r => r.personType === 'servant');
     const studentAtt = attendanceRecs.filter(r => r.personType === 'student');
 
     if (status === 'not-recorded') {
-      const recSIds  = new Set(servantAtt.map(r => String(r.personId)));
-      const recStIds = new Set(studentAtt.map(r => String(r.personId)));
+      const sIds  = new Set(servantAtt.map(r => String(r.personId)));
+      const stIds = new Set(studentAtt.map(r => String(r.personId)));
       return {
-        servants: servants.filter(s => !recSIds.has(String(s.id))),
-        students: students.filter(s => !recStIds.has(String(s.id)))
+        servants: servants.filter(s => !sIds.has(String(s.id))),
+        students: students.filter(s => !stIds.has(String(s.id)))
       };
     }
-
     const sIds  = new Set(servantAtt.filter(r => r.status === status).map(r => String(r.personId)));
     const stIds = new Set(studentAtt.filter(r => r.status === status).map(r => String(r.personId)));
     return {
