@@ -1,0 +1,11 @@
+# ملفات مؤقتة — لا ترفعها على GitHub
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+
+# لا تحتاج رفع node_modules إن وُجدت
+node_modules/
+
+# يمكنك تجاهل ملف الإعداد إن أردت الخصوصية
+# firebase-config.js

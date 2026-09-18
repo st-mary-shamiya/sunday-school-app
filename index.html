@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#D4AF37">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="تطبيق إدارة مدارس الأحد الابتدائي - كنيسة السيدة العذراء مريم بالشامية">
+  <title>مدارس الأحد — كنيسة السيدة العذراء مريم بالشامية</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     شاشة التحميل
+═══════════════════════════════════════ -->
+<div id="loading-screen">
+  <div class="loader-cross">✝</div>
+  <div class="loader-text">بسم الثالوث القدوس</div>
+  <div class="loader-bar"><div class="loader-bar-inner"></div></div>
+  <div style="font-size:12px;color:rgba(255,255,255,0.3);margin-top:8px">كنيسة السيدة العذراء مريم بالشامية</div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     التطبيق الرئيسي
+═══════════════════════════════════════ -->
+<div id="app">
+
+  <!-- ═══ الرأس ═══ -->
+  <header>
+    <div class="header-church">
+      <div class="header-cross-wrap">✝</div>
+      <div class="header-text">
+        <div class="header-blessing">بسم الثالوث القدوس</div>
+        <div class="header-church-name">كنيسة السيدة العذراء مريم بالشامية</div>
+        <div class="header-subtitle">خدمة مدارس الأحد الابتدائي</div>
+        <div class="header-year">السنة القبطية 1743 للشهداء</div>
+      </div>
+      <div class="header-date-box">
+        <div class="date-gregorian" id="gregorian-date">—</div>
+        <div class="date-coptic" id="coptic-date">—</div>
+      </div>
+    </div>
+
+    <!-- تاريخ تسجيل الحضور -->
+    <div class="attendance-date-row">
+      <span class="attendance-date-label">📅 تاريخ تسجيل الحضور:</span>
+      <input type="date" id="attendance-date" title="اختر تاريخ لتسجيل الحضور">
+    </div>
+
+    <!-- شريط التبويبات -->
+    <nav class="tab-nav" role="tablist">
+      <button class="tab-btn active" data-tab="servants" role="tab" aria-selected="true" id="tab-btn-servants">
+        <span class="tab-icon">👤</span>
+        <span>الخدام</span>
+      </button>
+      <button class="tab-btn" data-tab="classes" role="tab" aria-selected="false" id="tab-btn-classes">
+        <span class="tab-icon">🏫</span>
+        <span>الفصول</span>
+      </button>
+      <button class="tab-btn" data-tab="search" role="tab" aria-selected="false" id="tab-btn-search">
+        <span class="tab-icon">🔍</span>
+        <span>البحث العام</span>
+      </button>
+    </nav>
+  </header>
+
+  <!-- ═══ المحتوى ═══ -->
+  <main>
+
+    <!-- ─────────────────────────────────────
+         التبويب 1: الخدام
+    ───────────────────────────────────── -->
+    <section id="tab-servants" class="tab-content active" role="tabpanel">
+      <div class="section-header">
+        <h2>👤 إدارة الخدام</h2>
+        <div class="header-actions">
+          <button class="btn btn-gold" id="add-servant-btn">➕ إضافة خادم</button>
+          <button class="btn btn-outline" id="print-servants-btn">🖨️ طباعة تقرير</button>
+        </div>
+      </div>
+
+      <!-- بحث -->
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="servant-search-input" placeholder="بحث بالاسم أو الفصل المسؤول...">
+      </div>
+
+      <!-- إحصائيات -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <span class="stat-num" id="servants-total">0</span>
+          <div class="stat-label">إجمالي الخدام</div>
+        </div>
+        <div class="stat-card sc-present">
+          <span class="stat-num" id="servants-present">0</span>
+          <div class="stat-label">حاضر اليوم</div>
+        </div>
+        <div class="stat-card sc-absent">
+          <span class="stat-num" id="servants-absent">0</span>
+          <div class="stat-label">غائب اليوم</div>
+        </div>
+      </div>
+
+      <!-- جدول الخدام -->
+      <div class="table-wrap">
+        <table id="servants-table">
+          <thead>
+            <tr>
+              <th style="width:44px">#</th>
+              <th>الاسم الكامل</th>
+              <th>تاريخ الميلاد</th>
+              <th>العمر</th>
+              <th>الفصل المسؤول</th>
+              <th>الحضور</th>
+              <th style="width:90px">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="servants-tbody">
+            <tr><td colspan="7">
+              <div class="empty-state">
+                <div class="empty-icon">👤</div>
+                <h3>جارٍ التحميل...</h3>
+              </div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────
+         التبويب 2: الفصول
+    ───────────────────────────────────── -->
+    <section id="tab-classes" class="tab-content" role="tabpanel">
+
+      <!-- عرض قائمة الفصول -->
+      <div id="classes-list-view">
+        <div class="section-header">
+          <h2>🏫 إدارة الفصول</h2>
+          <div class="header-actions">
+            <button class="btn btn-gold" id="add-class-btn">➕ إضافة فصل</button>
+            <button class="btn btn-outline" id="print-all-classes-btn">🖨️ تقرير شامل</button>
+          </div>
+        </div>
+        <div class="classes-grid" id="classes-grid">
+          <div class="empty-state" style="grid-column:1/-1">
+            <div class="empty-icon">🏫</div>
+            <h3>جارٍ التحميل...</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- عرض تفاصيل فصل (المخدومون) -->
+      <div id="class-detail-view" style="display:none">
+        <div class="section-header">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <button class="btn-back" id="back-to-classes-btn">← رجوع للفصول</button>
+            <h2 id="class-detail-title">🏫 الفصل</h2>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-gold" id="add-student-btn">➕ إضافة مخدوم</button>
+            <button class="btn btn-outline" id="print-class-btn">🖨️ طباعة تقرير الفصل</button>
+          </div>
+        </div>
+
+        <!-- بحث -->
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="student-search-input" placeholder="بحث بالاسم...">
+        </div>
+
+        <!-- إحصائيات -->
+        <div class="stats-row">
+          <div class="stat-card">
+            <span class="stat-num" id="students-total">0</span>
+            <div class="stat-label">إجمالي المخدومين</div>
+          </div>
+          <div class="stat-card sc-present">
+            <span class="stat-num" id="students-present">0</span>
+            <div class="stat-label">حاضر اليوم</div>
+          </div>
+          <div class="stat-card sc-absent">
+            <span class="stat-num" id="students-absent">0</span>
+            <div class="stat-label">غائب اليوم</div>
+          </div>
+        </div>
+
+        <!-- جدول المخدومين -->
+        <div class="table-wrap">
+          <table id="students-table">
+            <thead>
+              <tr>
+                <th style="width:44px">#</th>
+                <th>الاسم الكامل</th>
+                <th>تاريخ الميلاد</th>
+                <th>العمر</th>
+                <th>الحضور</th>
+                <th style="width:90px">إجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="students-tbody">
+              <tr><td colspan="6">
+                <div class="empty-state">
+                  <div class="empty-icon">🧒</div>
+                  <h3>لا يوجد مخدومون بعد</h3>
+                </div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────
+         التبويب 3: البحث العام
+    ───────────────────────────────────── -->
+    <section id="tab-search" class="tab-content" role="tabpanel">
+      <div class="section-header">
+        <h2>🔍 البحث العام</h2>
+      </div>
+
+      <div class="search-section-card">
+        <!-- نوع البحث -->
+        <div class="search-type-row">
+          <button class="search-type-btn active" data-type="name">🔤 بحث بالاسم</button>
+          <button class="search-type-btn" data-type="birthdate">🎂 تواريخ الميلاد</button>
+          <button class="search-type-btn" data-type="attendance">📋 الحضور والغياب</button>
+        </div>
+
+        <!-- لوحة البحث بالاسم -->
+        <div class="search-input-panel" id="search-panel-name">
+          <input type="text" id="general-search-name" placeholder="🔍 ادخل الاسم أو جزء منه...">
+          <div class="search-scope-row">
+            <span style="font-size:12px;color:var(--text-faint)">البحث في:</span>
+            <label><input type="checkbox" id="search-scope-servants" checked> الخدام</label>
+            <label><input type="checkbox" id="search-scope-students" checked> المخدومون</label>
+          </div>
+        </div>
+
+        <!-- لوحة البحث بتاريخ الميلاد -->
+        <div class="search-input-panel" id="search-panel-birthdate" style="display:none">
+          <input type="text" id="general-search-birthdate"
+            placeholder="أدخل جزء من تاريخ الميلاد (مثال: 1998 أو -03- أو -15)">
+          <div style="font-size:11px;color:var(--text-faint);margin-top:4px">
+            💡 مثال: "1998" يجد كل من وُلد عام 1998 | "-03-" يجد مواليد شهر مارس
+          </div>
+        </div>
+
+        <!-- لوحة البحث بالحضور -->
+        <div class="search-input-panel" id="search-panel-attendance" style="display:none">
+          <select id="attendance-search-status">
+            <option value="present">✓ الحاضرون</option>
+            <option value="absent">✗ الغائبون</option>
+            <option value="not-recorded">— لم يسجل بعد</option>
+          </select>
+          <input type="date" id="attendance-search-date">
+          <div style="font-size:11px;color:var(--text-faint);margin-top:4px">
+            💡 اختر التاريخ ثم حدد حالة الحضور للبحث
+          </div>
+        </div>
+
+        <button class="btn btn-gold" id="do-search-btn" style="margin-top:14px;width:100%">
+          🔍 بحث
+        </button>
+      </div>
+
+      <!-- نتائج البحث -->
+      <div class="search-results-area" id="search-results-area"></div>
+    </section>
+
+  </main><!-- /main -->
+</div><!-- /app -->
+
+<!-- ═══════════════════════════════════════
+     زر تصدير البيانات (عائم)
+═══════════════════════════════════════ -->
+<div style="position:fixed;bottom:20px;left:16px;display:flex;flex-direction:column;gap:8px;z-index:500">
+  <button class="fab-export" id="export-data-btn" title="تصدير نسخة احتياطية">💾</button>
+  <label class="fab-export" style="cursor:pointer;font-size:18px" title="استيراد بيانات">
+    📥
+    <input type="file" id="import-data-input" accept=".json" style="display:none">
+  </label>
+</div>
+
+<!-- ═══════════════════════════════════════
+     المودالات
+═══════════════════════════════════════ -->
+
+<!-- مودال الخادم -->
+<div class="modal-overlay" id="servant-modal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="servant-modal-title">➕ إضافة خادم جديد</h3>
+      <button class="modal-close" aria-label="إغلاق">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="servant-form" novalidate>
+        <input type="hidden" id="servant-id">
+        <div class="form-row">
+          <div class="form-group" style="grid-column:1/-1">
+            <label for="servant-name">الاسم الكامل *</label>
+            <input type="text" id="servant-name" placeholder="مثال: مريم بطرس يوسف" autocomplete="off" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="servant-birthdate">تاريخ الميلاد</label>
+            <input type="date" id="servant-birthdate" color-scheme="dark">
+          </div>
+          <div class="form-group">
+            <label for="servant-class-select">الفصل المسؤول</label>
+            <select id="servant-class-select">
+              <option value="">— لا يوجد —</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="servant-notes">ملاحظات</label>
+          <textarea id="servant-notes" placeholder="أي ملاحظات إضافية..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-gold">💾 حفظ</button>
+          <button type="button" class="btn btn-outline modal-cancel">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- مودال الفصل -->
+<div class="modal-overlay" id="class-modal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="class-modal-title">➕ إضافة فصل جديد</h3>
+      <button class="modal-close" aria-label="إغلاق">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="class-form" novalidate>
+        <input type="hidden" id="class-id">
+        <div class="form-group">
+          <label for="class-name">اسم الفصل *</label>
+          <input type="text" id="class-name" placeholder="مثال: فصل الأبرار — المجموعة الأولى" autocomplete="off" required>
+        </div>
+        <div class="form-group">
+          <label for="class-age-group">الفئة العمرية</label>
+          <input type="text" id="class-age-group" placeholder="مثال: 6 — 8 سنوات">
+        </div>
+        <div class="form-group">
+          <label for="class-notes">ملاحظات</label>
+          <textarea id="class-notes" placeholder="أي ملاحظات عن الفصل..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-gold">💾 حفظ</button>
+          <button type="button" class="btn btn-outline modal-cancel">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- مودال المخدوم -->
+<div class="modal-overlay" id="student-modal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="student-modal-title">➕ إضافة مخدوم جديد</h3>
+      <button class="modal-close" aria-label="إغلاق">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="student-form" novalidate>
+        <input type="hidden" id="student-id">
+        <div class="form-group">
+          <label for="student-name">الاسم الكامل *</label>
+          <input type="text" id="student-name" placeholder="مثال: بيشوي ماجد رمزي" autocomplete="off" required>
+        </div>
+        <div class="form-group">
+          <label for="student-birthdate">تاريخ الميلاد</label>
+          <input type="date" id="student-birthdate">
+        </div>
+        <div class="form-group">
+          <label for="student-notes">ملاحظات</label>
+          <textarea id="student-notes" placeholder="أي ملاحظات إضافية..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-gold">💾 حفظ</button>
+          <button type="button" class="btn btn-outline modal-cancel">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- مودال التأكيد -->
+<div class="modal-overlay" id="confirm-modal" role="dialog" aria-modal="true">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h3 id="confirm-title">تأكيد</h3>
+      <button class="modal-close" aria-label="إغلاق">✕</button>
+    </div>
+    <div class="confirm-modal-body">
+      <div class="confirm-icon">⚠️</div>
+      <div class="confirm-text" id="confirm-text"></div>
+      <div class="confirm-sub" id="confirm-sub" style="margin-top:8px;font-size:12px;color:var(--text-faint)"></div>
+    </div>
+    <div class="modal-actions" style="padding:0 20px 20px;justify-content:center">
+      <button class="btn btn-danger" id="confirm-ok-btn">✓ نعم، تأكيد</button>
+      <button class="btn btn-outline" id="confirm-cancel-btn">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast إشعارات -->
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<!-- ═══════════════════════════════════════
+     Firebase + السكريبتات
+═══════════════════════════════════════ -->
+
+<!-- 1. Firebase Config (type="module" لأنه يستخدم import) -->
+<script type="module" src="firebase-config.js"></script>
+
+<!-- 2. باقي الملفات (تنتظر firebase-config.js تلقائياً عبر _waitForFirebase) -->
+<script src="db.js"></script>
+<script src="pdf-export.js"></script>
+<script src="app.js"></script>
+
+<!-- مؤشر الاتصال -->
+<div id="conn-indicator" style="
+  position:fixed;top:8px;left:50%;transform:translateX(-50%);
+  padding:4px 14px;border-radius:20px;font-size:11px;font-family:Cairo,sans-serif;
+  background:rgba(0,0,0,0.7);color:#fff;z-index:9999;
+  display:none;pointer-events:none;border:1px solid rgba(255,255,255,0.15)
+">⏳ جارٍ الاتصال بقاعدة البيانات...</div>
+
+<script>
+  // إظهار مؤشر الاتصال حتى يتهيأ Firebase
+  const ci = document.getElementById('conn-indicator');
+  ci.style.display = 'block';
+  const waitConn = setInterval(() => {
+    if (window.firebaseApp) {
+      ci.textContent = '✅ متصل بقاعدة البيانات';
+      ci.style.background = 'rgba(30,100,30,0.85)';
+      setTimeout(() => ci.style.display = 'none', 2500);
+      clearInterval(waitConn);
+    }
+  }, 200);
+  // بعد 15 ثانية إذا لم يتصل
+  setTimeout(() => {
+    if (!window.firebaseApp) {
+      ci.textContent = '❌ خطأ في الاتصال — تحقق من firebase-config.js';
+      ci.style.background = 'rgba(120,0,0,0.9)';
+    }
+  }, 15000);
+</script>
+</body>
+</html>
