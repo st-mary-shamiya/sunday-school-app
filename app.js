@@ -2,7 +2,7 @@
 /**
  * app.js — المنطق الكامل لتطبيق مدارس الأحد
  * كنيسة السيدة العذراء مريم بالشامية
- * ✅ Fixed: string IDs quoted in onclick, removed Number() casts, full student fields
+ * ✅ v2.0 — إضافة: إحصاءات، سجل الحضور، لوحة الشرف، تنبيهات الأعياد
  */
 
 // ============================================================
@@ -67,28 +67,60 @@ let STATE = {
 // ============================================================
 // تهيئة التطبيق
 // ============================================================
-document.addEventListener('DOMContentLoaded', async () => {
+// ============================================================
+// تهيئة التطبيق
+// ============================================================
+async function startApp() {
+  const ls = document.getElementById('loading-screen');
+  const appEl = document.getElementById('app');
+
+  function revealApp() {
+    if (ls) {
+      ls.style.opacity = '0';
+      ls.style.pointerEvents = 'none';
+      setTimeout(() => { if (ls.parentNode) ls.remove(); }, 400);
+    }
+    if (appEl) {
+      appEl.style.display = 'flex';
+    }
+  }
+
+  // 1. ربط مستمعات الأحداث فوراً لتعمل الخانات والتبويبات مباشرة
+  try {
+    initEventListeners();
+    updateDateDisplay();
+    setInterval(updateDateDisplay, 60000);
+  } catch (err) {
+    console.error('خطأ في ربط مستمعات الأحداث:', err);
+  }
+
+  // 2. إظهار واجهة التطبيق مباشرة
+  revealApp();
+
+  // 3. الاتصال بقاعدة البيانات وتحميل البيانات الأولية
   try {
     await db.open();
-    await initApp();
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+    await loadServants();
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+    setTimeout(() => checkBirthdayAlerts(), 1500);
   } catch (err) {
-    console.error('خطأ في تهيئة التطبيق:', err);
-    showToast('خطأ في تحميل التطبيق — تحقق من الاتصال بالإنترنت', 'error');
+    console.error('خطأ في الاتصال بقاعدة البيانات:', err);
+    showToast('⚠️ خطأ في الاتصال بقاعدة البيانات — تحقق من الإنترنت', 'error');
   }
-});
+}
 
-async function initApp() {
-  updateDateDisplay();
-  setInterval(updateDateDisplay, 60000);
-
+function initEventListeners() {
   // تاريخ الحضور
   const attInput = document.getElementById('attendance-date');
-  attInput.value = STATE.attendanceDate;
-  attInput.addEventListener('change', async (e) => {
-    STATE.attendanceDate = e.target.value;
-    await refreshCurrentTab();
-  });
+  if (attInput) {
+    attInput.value = STATE.attendanceDate;
+    attInput.addEventListener('change', async (e) => {
+      STATE.attendanceDate = e.target.value;
+      await refreshCurrentTab();
+    });
+  }
 
   // التبويبات
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -96,25 +128,47 @@ async function initApp() {
   });
 
   // أزرار الخدام
-  document.getElementById('add-servant-btn').addEventListener('click', () => openServantModal());
-  document.getElementById('print-servants-btn').addEventListener('click', () => printServantsReport(STATE.attendanceDate));
-  document.getElementById('servant-search-input').addEventListener('input', (e) => {
-    STATE.servantSearch = e.target.value;
-    renderServants();
-  });
+  const addServantBtn = document.getElementById('add-servant-btn');
+  if (addServantBtn) addServantBtn.addEventListener('click', () => openServantModal());
+
+  const printServantsBtn = document.getElementById('print-servants-btn');
+  if (printServantsBtn) printServantsBtn.addEventListener('click', () => printServantsReport(STATE.attendanceDate));
+
+  const servantSearchInput = document.getElementById('servant-search-input');
+  if (servantSearchInput) {
+    servantSearchInput.addEventListener('input', (e) => {
+      STATE.servantSearch = e.target.value;
+      renderServants();
+    });
+  }
 
   // أزرار الفصول
-  document.getElementById('add-class-btn').addEventListener('click', () => openClassModal());
-  document.getElementById('print-all-classes-btn').addEventListener('click', () => printAllClassesReport(STATE.attendanceDate));
-  document.getElementById('back-to-classes-btn').addEventListener('click', backToClasses);
-  document.getElementById('add-student-btn').addEventListener('click', () => openStudentModal());
-  document.getElementById('print-class-btn').addEventListener('click', () =>
-    printClassReport(STATE.currentClassId, STATE.currentClassName, STATE.attendanceDate)
-  );
-  document.getElementById('student-search-input').addEventListener('input', (e) => {
-    STATE.studentSearch = e.target.value;
-    renderStudents();
-  });
+  const addClassBtn = document.getElementById('add-class-btn');
+  if (addClassBtn) addClassBtn.addEventListener('click', () => openClassModal());
+
+  const printAllClassesBtn = document.getElementById('print-all-classes-btn');
+  if (printAllClassesBtn) printAllClassesBtn.addEventListener('click', () => printAllClassesReport(STATE.attendanceDate));
+
+  const backToClassesBtn = document.getElementById('back-to-classes-btn');
+  if (backToClassesBtn) backToClassesBtn.addEventListener('click', backToClasses);
+
+  const addStudentBtn = document.getElementById('add-student-btn');
+  if (addStudentBtn) addStudentBtn.addEventListener('click', () => openStudentModal());
+
+  const printClassBtn = document.getElementById('print-class-btn');
+  if (printClassBtn) {
+    printClassBtn.addEventListener('click', () =>
+      printClassReport(STATE.currentClassId, STATE.currentClassName, STATE.attendanceDate)
+    );
+  }
+
+  const studentSearchInput = document.getElementById('student-search-input');
+  if (studentSearchInput) {
+    studentSearchInput.addEventListener('input', (e) => {
+      STATE.studentSearch = e.target.value;
+      renderStudents();
+    });
+  }
 
   // البحث العام
   document.querySelectorAll('.search-type-btn').forEach(btn => {
@@ -122,20 +176,32 @@ async function initApp() {
       document.querySelectorAll('.search-type-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       document.querySelectorAll('.search-input-panel').forEach(p => p.style.display = 'none');
-      document.getElementById(`search-panel-${btn.dataset.type}`).style.display = 'block';
+      const panel = document.getElementById(`search-panel-${btn.dataset.type}`);
+      if (panel) panel.style.display = 'block';
     });
   });
-  document.getElementById('do-search-btn').addEventListener('click', doGeneralSearch);
-  document.getElementById('general-search-name').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') doGeneralSearch();
-  });
+
+  const doSearchBtn = document.getElementById('do-search-btn');
+  if (doSearchBtn) doSearchBtn.addEventListener('click', doGeneralSearch);
+
+  const genSearchName = document.getElementById('general-search-name');
+  if (genSearchName) {
+    genSearchName.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doGeneralSearch();
+    });
+  }
 
   // فورم الخدام
-  document.getElementById('servant-form').addEventListener('submit', saveServant);
+  const servantForm = document.getElementById('servant-form');
+  if (servantForm) servantForm.addEventListener('submit', saveServant);
+
   // فورم الفصول
-  document.getElementById('class-form').addEventListener('submit', saveClass);
+  const classForm = document.getElementById('class-form');
+  if (classForm) classForm.addEventListener('submit', saveClass);
+
   // فورم المخدومين
-  document.getElementById('student-form').addEventListener('submit', saveStudent);
+  const studentForm = document.getElementById('student-form');
+  if (studentForm) studentForm.addEventListener('submit', saveStudent);
 
   // إغلاق المودالات
   document.querySelectorAll('.modal-close, .modal-cancel').forEach(el => {
@@ -147,29 +213,35 @@ async function initApp() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAllModals(); });
 
   // مودال التأكيد
-  document.getElementById('confirm-ok-btn').addEventListener('click', async () => {
-    if (_confirmCallback) { await _confirmCallback(); _confirmCallback = null; }
-    closeAllModals();
-  });
-  document.getElementById('confirm-cancel-btn').addEventListener('click', closeAllModals);
+  const confirmOkBtn = document.getElementById('confirm-ok-btn');
+  if (confirmOkBtn) {
+    confirmOkBtn.addEventListener('click', async () => {
+      if (_confirmCallback) { await _confirmCallback(); _confirmCallback = null; }
+      closeAllModals();
+    });
+  }
+
+  const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+  if (confirmCancelBtn) confirmCancelBtn.addEventListener('click', closeAllModals);
 
   // تصدير / استيراد
-  document.getElementById('export-data-btn').addEventListener('click', exportData);
-  document.getElementById('import-data-input').addEventListener('change', importData);
+  const exportBtn = document.getElementById('export-data-btn');
+  if (exportBtn) exportBtn.addEventListener('click', exportData);
+
+  const importInput = document.getElementById('import-data-input');
+  if (importInput) importInput.addEventListener('change', importData);
 
   // تاريخ بحث الحضور
   const attSearchDate = document.getElementById('attendance-search-date');
   if (attSearchDate) attSearchDate.value = STATE.attendanceDate;
-
-  // تحميل أول بيانات
-  await loadServants();
-
-  // إخفاء شاشة التحميل
-  setTimeout(() => {
-    const ls = document.getElementById('loading-screen');
-    if (ls) { ls.style.opacity = '0'; setTimeout(() => ls.remove(), 400); }
-  }, 800);
 }
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startApp);
+} else {
+  startApp();
+}
+
 
 function updateDateDisplay() {
   const today = new Date();
@@ -190,6 +262,7 @@ async function switchTab(tabName) {
     s.classList.toggle('active', s.id === `tab-${tabName}`)
   );
   if (tabName === 'classes') { showClassesListView(); await loadClasses(); }
+  else if (tabName === 'stats') { await loadStats(); }
   else await refreshCurrentTab();
 }
 
@@ -200,6 +273,7 @@ async function refreshCurrentTab() {
       if (STATE.currentClassId) await loadStudents(STATE.currentClassId);
       else await loadClasses();
       break;
+    case 'stats': await loadStats(); break;
   }
 }
 
@@ -268,6 +342,7 @@ async function renderServants() {
         </td>
         <td>
           <div class="row-actions">
+            <button class="btn btn-glass btn-sm btn-icon" onclick="event.stopPropagation();showAttendanceHistory('${sid}','servant','${escHtml(s.name)}')" title="سجل الحضور">📅</button>
             <button class="btn btn-glass btn-sm btn-icon" onclick="event.stopPropagation();openServantModal('${sid}')" title="تعديل">✏️</button>
             <button class="btn btn-glass btn-sm btn-icon btn-del" onclick="event.stopPropagation();confirmDeleteServant('${sid}','${escHtml(s.name)}')" title="حذف">🗑️</button>
           </div>
@@ -322,7 +397,7 @@ async function saveServant(e) {
 
   const data = { name, birthDate, classId, phone, address, notes };
   if (id) {
-    data.id = id; // ✅ string ID — لا Number()
+    data.id = id;
     await db.put('servants', data);
     showToast('✅ تم تحديث بيانات الخادم', 'success');
   } else {
@@ -378,6 +453,7 @@ async function loadClasses() {
     const present    = clsStudents.filter(s => attMap[String(s.id)] === 'present').length;
     const absent     = clsStudents.filter(s => attMap[String(s.id)] === 'absent').length;
     const icon       = icons[idx % icons.length];
+    const pct        = clsStudents.length > 0 ? Math.round((present / clsStudents.length) * 100) : 0;
     return `
       <div class="class-card" onclick="openClass('${cid}','${escHtml(cls.name)}')">
         <div class="class-card-actions">
@@ -392,6 +468,10 @@ async function loadClasses() {
           <span class="class-stat-badge" style="color:var(--success)">✓ ${present}</span>
           <span class="class-stat-badge" style="color:var(--danger)">✗ ${absent}</span>
         </div>
+        <div class="class-progress-bar">
+          <div class="class-progress-fill" style="width:${pct}%"></div>
+        </div>
+        <div style="font-size:10px;color:var(--text-faint);text-align:center;margin-top:4px">${pct}% حضور</div>
       </div>`;
   }).join('');
 }
@@ -469,6 +549,7 @@ async function renderStudents() {
         </td>
         <td>
           <div class="row-actions">
+            <button class="btn btn-glass btn-sm btn-icon" onclick="event.stopPropagation();showAttendanceHistory('${sid}','student','${escHtml(s.name)}')" title="سجل الحضور">📅</button>
             <button class="btn btn-glass btn-sm btn-icon" onclick="event.stopPropagation();openStudentModal('${sid}')" title="تعديل">✏️</button>
             <button class="btn btn-glass btn-sm btn-icon btn-del" onclick="event.stopPropagation();confirmDeleteStudent('${sid}','${escHtml(s.name)}')" title="حذف">🗑️</button>
           </div>
@@ -506,7 +587,7 @@ async function saveClass(e) {
   if (!name) { showToast('يرجى إدخال اسم الفصل', 'error'); return; }
   const data = { name, ageGroup, notes };
   if (id) {
-    data.id = id; // ✅ string ID
+    data.id = id;
     await db.put('classes', data);
     showToast('✅ تم تحديث الفصل', 'success');
   } else {
@@ -584,7 +665,7 @@ async function saveStudent(e) {
     classId: STATE.currentClassId
   };
   if (id) {
-    data.id = id; // ✅ string ID
+    data.id = id;
     await db.put('students', data);
     showToast('✅ تم تحديث بيانات المخدوم', 'success');
   } else {
@@ -626,6 +707,312 @@ async function toggleAttendance(personId, personType, currentStatus) {
 }
 
 // ============================================================
+// سجل الحضور التاريخي
+// ============================================================
+async function showAttendanceHistory(personId, personType, personName) {
+  const modal = document.getElementById('history-modal');
+  const title = document.getElementById('history-modal-title');
+  const body  = document.getElementById('history-modal-body');
+
+  title.textContent = `📅 سجل حضور: ${personName}`;
+  body.innerHTML = '<div class="search-loading">⏳ جارٍ التحميل...</div>';
+  modal.classList.add('open');
+
+  try {
+    const records = await db.getAllAttendanceForPerson(personId, personType);
+    records.sort((a, b) => b.date.localeCompare(a.date));
+
+    if (records.length === 0) {
+      body.innerHTML = `<div class="empty-state" style="padding:40px">
+        <div class="empty-icon">📅</div>
+        <h3>لا يوجد سجل حضور</h3>
+        <p>لم يتم تسجيل أي حضور لهذا الشخص بعد</p>
+      </div>`;
+      return;
+    }
+
+    const presentCount = records.filter(r => r.status === 'present').length;
+    const absentCount  = records.filter(r => r.status === 'absent').length;
+    const pct          = Math.round((presentCount / records.length) * 100);
+
+    // شريط التقدم
+    const progressColor = pct >= 75 ? 'var(--success)' : pct >= 50 ? 'var(--warning)' : 'var(--danger)';
+
+    body.innerHTML = `
+      <div class="history-stats">
+        <div class="history-stat-item">
+          <span class="history-stat-num" style="color:var(--gold)">${records.length}</span>
+          <span class="history-stat-lbl">إجمالي الأسابيع</span>
+        </div>
+        <div class="history-stat-item">
+          <span class="history-stat-num" style="color:var(--success)">${presentCount}</span>
+          <span class="history-stat-lbl">حضر</span>
+        </div>
+        <div class="history-stat-item">
+          <span class="history-stat-num" style="color:var(--danger)">${absentCount}</span>
+          <span class="history-stat-lbl">غاب</span>
+        </div>
+        <div class="history-stat-item">
+          <span class="history-stat-num" style="color:${progressColor}">${pct}%</span>
+          <span class="history-stat-lbl">نسبة الحضور</span>
+        </div>
+      </div>
+      <div class="history-progress-wrap">
+        <div class="history-progress-bar">
+          <div class="history-progress-fill" style="width:${pct}%;background:${progressColor}"></div>
+        </div>
+        <span class="history-progress-label">${pct >= 75 ? '🌟 ممتاز' : pct >= 50 ? '📈 جيد' : '⚠️ يحتاج متابعة'}</span>
+      </div>
+      <div class="history-list">
+        ${records.map(r => {
+          const isPresent = r.status === 'present';
+          return `
+          <div class="history-item ${isPresent ? 'history-present' : 'history-absent'}">
+            <span class="history-item-date">${formatDateAr(r.date)}</span>
+            <span class="history-item-badge ${isPresent ? 'badge-present' : 'badge-absent'}">
+              ${isPresent ? '✓ حاضر' : '✗ غائب'}
+            </span>
+          </div>`;
+        }).join('')}
+      </div>`;
+  } catch (err) {
+    body.innerHTML = `<div style="color:var(--danger);text-align:center;padding:24px">❌ خطأ: ${err.message}</div>`;
+  }
+}
+
+// ============================================================
+// تنبيهات أعياد الميلاد
+// ============================================================
+async function checkBirthdayAlerts() {
+  try {
+    const [servants, students] = await Promise.all([db.getAll('servants'), db.getAll('students')]);
+    const all = [...servants, ...students];
+    const today = new Date();
+    const upcoming = [];
+
+    for (const p of all) {
+      if (!p.birthDate) continue;
+      const bday = new Date(p.birthDate + 'T00:00:00');
+      // تعيين عيد ميلاد هذه السنة
+      const thisYear = new Date(today.getFullYear(), bday.getMonth(), bday.getDate());
+      const diffDays = Math.ceil((thisYear - today) / 86400000);
+      if (diffDays >= 0 && diffDays <= 7) {
+        upcoming.push({ name: p.name, days: diffDays, date: p.birthDate });
+      }
+    }
+
+    if (upcoming.length === 0) return;
+
+    // عرض التنبيهات في البانر
+    const banner = document.getElementById('birthday-banner');
+    if (!banner) return;
+
+    const today0 = upcoming.filter(p => p.days === 0);
+    const soon   = upcoming.filter(p => p.days > 0);
+
+    let html = '';
+    if (today0.length > 0) {
+      html += `<div class="bday-alert bday-today">🎂 عيد ميلاد اليوم: ${today0.map(p => `<strong>${escHtml(p.name)}</strong>`).join('، ')} — كل سنة وأنتم بخير! 🎉</div>`;
+    }
+    if (soon.length > 0) {
+      html += `<div class="bday-alert bday-soon">🎈 أعياد ميلاد قريبة: ${soon.map(p => `<strong>${escHtml(p.name)}</strong> (${p.days === 1 ? 'غداً' : 'بعد ' + p.days + ' أيام'})`).join(' | ')}</div>`;
+    }
+    banner.innerHTML = html;
+    banner.style.display = 'block';
+  } catch (err) {
+    console.warn('birthday check failed:', err);
+  }
+}
+
+// ============================================================
+// تبويب الإحصاءات
+// ============================================================
+async function loadStats() {
+  const [servants, classes, students, attRecs] = await Promise.all([
+    db.getAll('servants'),
+    db.getAll('classes'),
+    db.getAll('students'),
+    db.getAttendanceForDateAndType(STATE.attendanceDate, 'student')
+  ]);
+  const servantAttRecs = await db.getAttendanceForDateAndType(STATE.attendanceDate, 'servant');
+
+  const attMap = {};
+  attRecs.forEach(r => attMap[r.personId] = r.status);
+  const sAttMap = {};
+  servantAttRecs.forEach(r => sAttMap[r.personId] = r.status);
+
+  // إجمالي
+  const totalStudents  = students.length;
+  const totalServants  = servants.length;
+  const presentStudents= students.filter(s => attMap[String(s.id)] === 'present').length;
+  const absentStudents = students.filter(s => attMap[String(s.id)] === 'absent').length;
+  const presentServants= servants.filter(s => sAttMap[String(s.id)] === 'present').length;
+  const absentServants = servants.filter(s => sAttMap[String(s.id)] === 'absent').length;
+
+  // بطاقات الإحصاء العلوية
+  document.getElementById('stat-total-students').textContent  = totalStudents;
+  document.getElementById('stat-total-servants').textContent  = totalServants;
+  document.getElementById('stat-total-classes').textContent   = classes.length;
+  document.getElementById('stat-present-today').textContent   = presentStudents + presentServants;
+
+  // رسم دائري للمخدومين
+  renderDonutChart('students-donut', presentStudents, absentStudents, totalStudents - presentStudents - absentStudents);
+  // رسم دائري للخدام
+  renderDonutChart('servants-donut', presentServants, absentServants, totalServants - presentServants - absentServants);
+
+  // جدول أداء الفصول
+  const classMap = {};
+  classes.forEach(c => classMap[String(c.id)] = c.name);
+
+  const classStats = classes.map(cls => {
+    const cid = String(cls.id);
+    const clsStudents = students.filter(s => String(s.classId) === cid);
+    const present = clsStudents.filter(s => attMap[String(s.id)] === 'present').length;
+    const pct = clsStudents.length > 0 ? Math.round((present / clsStudents.length) * 100) : 0;
+    return { name: cls.name, total: clsStudents.length, present, pct };
+  }).sort((a, b) => b.pct - a.pct);
+
+  const tbody = document.getElementById('stats-classes-tbody');
+  if (classStats.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state" style="padding:30px">
+      <div class="empty-icon">📊</div><h3>لا توجد بيانات</h3>
+    </div></td></tr>`;
+  } else {
+    tbody.innerHTML = classStats.map((cls, i) => {
+      const color = cls.pct >= 75 ? 'var(--success)' : cls.pct >= 50 ? 'var(--warning)' : 'var(--danger)';
+      return `<tr>
+        <td class="td-num">${i + 1}</td>
+        <td class="td-name">${escHtml(cls.name)}</td>
+        <td>${cls.total}</td>
+        <td style="color:${color};font-weight:700">${cls.present}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="flex:1;background:rgba(255,255,255,0.1);border-radius:99px;height:6px;overflow:hidden">
+              <div style="width:${cls.pct}%;height:100%;background:${color};border-radius:99px;transition:width 0.6s ease"></div>
+            </div>
+            <span style="color:${color};font-weight:700;font-size:12px;min-width:36px">${cls.pct}%</span>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  // لوحة الشرف
+  await renderLeaderboard(servants, students, classes);
+}
+
+function renderDonutChart(containerId, present, absent, notRecorded) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const total = present + absent + notRecorded;
+  if (total === 0) {
+    container.innerHTML = `<div style="text-align:center;color:var(--text-faint);padding:30px">لا توجد بيانات</div>`;
+    return;
+  }
+
+  const pPct = total > 0 ? (present / total) : 0;
+  const aPct = total > 0 ? (absent / total) : 0;
+  const nPct = 1 - pPct - aPct;
+
+  // SVG Donut
+  const r = 60, cx = 80, cy = 80, strokeWidth = 20;
+  const circ = 2 * Math.PI * r;
+
+  function arc(pct, offset) {
+    return `stroke-dasharray="${(pct * circ).toFixed(2)} ${circ.toFixed(2)}" stroke-dashoffset="${(-offset * circ).toFixed(2)}"`;
+  }
+
+  const pPctLabel = Math.round(pPct * 100);
+  const aPctLabel = Math.round(aPct * 100);
+  const nPctLabel = 100 - pPctLabel - aPctLabel;
+
+  container.innerHTML = `
+    <svg viewBox="0 0 160 160" width="160" height="160" style="transform:rotate(-90deg)">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="${strokeWidth}"/>
+      ${nPct > 0 ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#555" stroke-width="${strokeWidth}" ${arc(nPct, 0)}/>` : ''}
+      ${aPct > 0 ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#EF5350" stroke-width="${strokeWidth}" ${arc(aPct, nPct)}/>` : ''}
+      ${pPct > 0 ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#4CAF50" stroke-width="${strokeWidth}" ${arc(pPct, nPct + aPct)}/>` : ''}
+    </svg>
+    <div class="donut-center-text">
+      <span class="donut-big">${pPctLabel}%</span>
+      <span class="donut-small">حضور</span>
+    </div>
+    <div class="donut-legend">
+      <div class="legend-item"><span class="legend-dot" style="background:#4CAF50"></span> حاضر ${present} (${pPctLabel}%)</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#EF5350"></span> غائب ${absent} (${aPctLabel}%)</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#555"></span> لم يسجل ${notRecorded} (${nPctLabel}%)</div>
+    </div>`;
+}
+
+async function renderLeaderboard(servants, students, classes) {
+  const classMap = {};
+  classes.forEach(c => classMap[String(c.id)] = c.name);
+
+  // حساب نسبة الحضور من كل السجلات
+  async function getPersonRate(id, type) {
+    const records = await db.getAllAttendanceForPerson(id, type);
+    if (records.length === 0) return { pct: 0, count: 0, total: 0 };
+    const present = records.filter(r => r.status === 'present').length;
+    return { pct: Math.round((present / records.length) * 100), count: present, total: records.length };
+  }
+
+  const servantBoard = document.getElementById('leaderboard-servants');
+  const studentBoard = document.getElementById('leaderboard-students');
+
+  if (!servantBoard || !studentBoard) return;
+
+  servantBoard.innerHTML = '<div class="search-loading">⏳ جارٍ الحساب...</div>';
+  studentBoard.innerHTML = '<div class="search-loading">⏳ جارٍ الحساب...</div>';
+
+  // أفضل خدام
+  const servantRates = await Promise.all(
+    servants.map(async s => ({ ...s, ...(await getPersonRate(String(s.id), 'servant')) }))
+  );
+  const topServants = servantRates
+    .filter(s => s.total >= 2)
+    .sort((a, b) => b.pct - a.pct || b.count - a.count)
+    .slice(0, 5);
+
+  // أفضل مخدومين
+  const studentRates = await Promise.all(
+    students.map(async s => ({ ...s, ...(await getPersonRate(String(s.id), 'student')) }))
+  );
+  const topStudents = studentRates
+    .filter(s => s.total >= 2)
+    .sort((a, b) => b.pct - a.pct || b.count - a.count)
+    .slice(0, 5);
+
+  const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+
+  function boardHTML(items, isServant) {
+    if (items.length === 0) {
+      return `<div style="text-align:center;color:var(--text-faint);padding:20px;font-size:13px">
+        لا توجد بيانات كافية (يلزم تسجيل حضور أسبوعين على الأقل)
+      </div>`;
+    }
+    return items.map((p, i) => {
+      const color = p.pct >= 75 ? 'var(--success)' : p.pct >= 50 ? 'var(--warning)' : 'var(--danger)';
+      const extra = isServant ? (classMap[String(p.classId)] || '') : (classMap[String(p.classId)] || '');
+      return `
+        <div class="leaderboard-item">
+          <div class="lb-medal">${medals[i]}</div>
+          <div class="lb-info">
+            <div class="lb-name">${escHtml(p.name)}</div>
+            ${extra ? `<div class="lb-sub">${escHtml(extra)}</div>` : ''}
+          </div>
+          <div class="lb-right">
+            <div class="lb-pct" style="color:${color}">${p.pct}%</div>
+            <div class="lb-counts">${p.count}/${p.total} أسبوع</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  servantBoard.innerHTML = boardHTML(topServants, true);
+  studentBoard.innerHTML = boardHTML(topStudents, false);
+}
+
+// ============================================================
 // البحث العام
 // ============================================================
 async function doGeneralSearch() {
@@ -652,14 +1039,18 @@ async function doGeneralSearch() {
       const date   = document.getElementById('attendance-search-date').value || STATE.attendanceDate;
       results = await db.searchByAttendance(date, status);
     }
-    renderSearchResults(results, activeType);
+    // إضافة classMap لعرض اسم الفصل
+    const classes = await db.getAll('classes');
+    const classMap = {};
+    classes.forEach(c => classMap[String(c.id)] = c.name);
+    renderSearchResults(results, activeType, classMap);
   } catch (err) {
     console.error(err);
     resultsArea.innerHTML = `<div class="search-hint" style="color:var(--danger)">❌ خطأ في البحث: ${err.message}</div>`;
   }
 }
 
-function renderSearchResults(results, type) {
+function renderSearchResults(results, type, classMap = {}) {
   const area = document.getElementById('search-results-area');
   const total = (results.servants?.length || 0) + (results.students?.length || 0);
   if (total === 0) {
@@ -675,7 +1066,7 @@ function renderSearchResults(results, type) {
         <tr class="clickable-row" onclick="switchTab('servants')">
           <td>${i+1}</td><td class="td-name">${escHtml(s.name)}</td>
           <td>${formatDateAr(s.birthDate)}</td><td>${calcAge(s.birthDate)}</td>
-          <td>${escHtml(s.classId || '—')}</td>
+          <td>${escHtml(classMap[String(s.classId)] || '—')}</td>
         </tr>`).join('')}
       </tbody></table></div>`;
   }
@@ -687,7 +1078,7 @@ function renderSearchResults(results, type) {
         <tr>
           <td>${i+1}</td><td class="td-name">${escHtml(s.name)}</td>
           <td>${formatDateAr(s.birthDate)}</td><td>${calcAge(s.birthDate)}</td>
-          <td>${escHtml(s.classId || '—')}</td>
+          <td>${escHtml(classMap[String(s.classId)] || '—')}</td>
         </tr>`).join('')}
       </tbody></table></div>`;
   }
@@ -758,90 +1149,6 @@ async function importData(e) {
 }
 
 // ============================================================
-// طباعة التقارير
-// ============================================================
-async function printServantsReport(date) {
-  const [servants, classes, attendanceRecs] = await Promise.all([
-    db.getAll('servants'), db.getAll('classes'),
-    db.getAttendanceForDateAndType(date, 'servant')
-  ]);
-  const attMap = {}; attendanceRecs.forEach(r => attMap[r.personId] = r.status);
-  const classMap = {}; classes.forEach(c => classMap[String(c.id)] = c.name);
-  const rows = servants.map((s, i) => `
-    <tr>
-      <td>${i+1}</td><td>${escHtml(s.name)}</td>
-      <td>${formatDateAr(s.birthDate)}</td><td>${calcAge(s.birthDate)}</td>
-      <td>${escHtml(classMap[String(s.classId)] || '—')}</td>
-      <td>${escHtml(s.phone || '—')}</td>
-      <td class="${attMap[String(s.id)] === 'present' ? 'att-p' : attMap[String(s.id)] === 'absent' ? 'att-a' : 'att-n'}">
-        ${attMap[String(s.id)] === 'present' ? '✓ حاضر' : attMap[String(s.id)] === 'absent' ? '✗ غائب' : '—'}
-      </td>
-    </tr>`).join('');
-  openPrintWindow('تقرير الخدام', date, rows,
-    '<th>#</th><th>الاسم</th><th>تاريخ الميلاد</th><th>العمر</th><th>الفصل</th><th>التليفون</th><th>الحضور</th>',
-    servants.length, servants.filter(s => attMap[String(s.id)] === 'present').length,
-    servants.filter(s => attMap[String(s.id)] === 'absent').length);
-}
-
-async function printClassReport(classId, className, date) {
-  const [students, attendanceRecs] = await Promise.all([
-    db.getByIndex('students', 'classId', classId),
-    db.getAttendanceForDateAndType(date, 'student')
-  ]);
-  const attMap = {}; attendanceRecs.forEach(r => attMap[r.personId] = r.status);
-  const rows = students.map((s, i) => `
-    <tr>
-      <td>${i+1}</td><td>${escHtml(s.name)}</td><td>${escHtml(s.father || '—')}</td>
-      <td>${formatDateAr(s.birthDate)}</td><td>${calcAge(s.birthDate)}</td>
-      <td>${escHtml(s.phone || s.fatherPhone || '—')}</td>
-      <td class="${attMap[String(s.id)] === 'present' ? 'att-p' : attMap[String(s.id)] === 'absent' ? 'att-a' : 'att-n'}">
-        ${attMap[String(s.id)] === 'present' ? '✓ حاضر' : attMap[String(s.id)] === 'absent' ? '✗ غائب' : '—'}
-      </td>
-    </tr>`).join('');
-  openPrintWindow(`تقرير فصل: ${className}`, date, rows,
-    '<th>#</th><th>الاسم</th><th>اسم الأب</th><th>تاريخ الميلاد</th><th>العمر</th><th>التليفون</th><th>الحضور</th>',
-    students.length, students.filter(s => attMap[String(s.id)] === 'present').length,
-    students.filter(s => attMap[String(s.id)] === 'absent').length);
-}
-
-async function printAllClassesReport(date) {
-  const classes = await db.getAll('classes');
-  for (const cls of classes) await printClassReport(String(cls.id), cls.name, date);
-}
-
-function openPrintWindow(title, date, rows, headers, total, present, absent) {
-  const w = window.open('', '_blank');
-  w.document.write(`<!DOCTYPE html><html dir="rtl"><head>
-  <meta charset="UTF-8"><title>${title}</title>
-  <style>
-    body{font-family:'Cairo',sans-serif;margin:20px;direction:rtl;color:#111}
-    h1{text-align:center;color:#8B5E0A;font-size:18px}
-    .sub{text-align:center;color:#555;font-size:12px;margin-bottom:16px}
-    .stats{display:flex;gap:20px;justify-content:center;margin:12px 0}
-    .stat{background:#f5f5f5;padding:8px 20px;border-radius:8px;text-align:center}
-    .stat b{font-size:22px;display:block}
-    table{width:100%;border-collapse:collapse;font-size:13px}
-    th{background:#8B5E0A;color:#fff;padding:8px;text-align:center}
-    td{padding:6px;border:1px solid #ddd;text-align:center}
-    tr:nth-child(even){background:#fafaf0}
-    .att-p{color:green;font-weight:bold} .att-a{color:red;font-weight:bold}
-    @media print{button{display:none}}
-  </style></head><body>
-  <h1>✝ بسم الثالوث القدوس</h1>
-  <div class="sub">كنيسة السيدة العذراء مريم بالشامية — خدمة مدارس الأحد الابتدائي</div>
-  <div class="sub">${title} — ${formatDateAr(date)}</div>
-  <div class="stats">
-    <div class="stat"><b>${total}</b>الإجمالي</div>
-    <div class="stat" style="color:green"><b>${present}</b>حاضر</div>
-    <div class="stat" style="color:red"><b>${absent}</b>غائب</div>
-  </div>
-  <table><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>
-  <br><button onclick="window.print()" style="width:100%;padding:12px;background:#8B5E0A;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;font-family:Cairo,sans-serif">🖨️ طباعة / حفظ PDF</button>
-  </body></html>`);
-  w.document.close();
-}
-
-// ============================================================
 // Toast إشعارات
 // ============================================================
 let _toastTimer = null;
@@ -860,3 +1167,79 @@ function escHtml(str) {
   if (!str) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// ============================================================
+// البحث العام (Missing functions added back)
+// ============================================================
+async function doGeneralSearch() {
+  const type = document.querySelector('.search-type-btn.active').dataset.type;
+  const resultsArea = document.getElementById('search-results-area');
+  resultsArea.innerHTML = '<div class="search-loading">⏳ جارٍ البحث...</div>';
+  
+  let results = { servants: [], students: [] };
+  try {
+    if (type === 'name') {
+      const q = document.getElementById('general-search-name').value;
+      const scopeServants = document.getElementById('search-scope-servants').checked;
+      const scopeStudents = document.getElementById('search-scope-students').checked;
+      if (scopeServants) results.servants = await db.searchByName('servants', q);
+      if (scopeStudents) results.students = await db.searchByName('students', q);
+    } else if (type === 'birthdate') {
+      const q = document.getElementById('general-search-birthdate').value;
+      results.servants = await db.searchByBirthdate('servants', q);
+      results.students = await db.searchByBirthdate('students', q);
+    } else if (type === 'attendance') {
+      const status = document.getElementById('attendance-search-status').value;
+      const date   = document.getElementById('attendance-search-date').value || STATE.attendanceDate;
+      results = await db.searchByAttendance(date, status);
+    }
+    const classes = await db.getAll('classes');
+    const classMap = {};
+    classes.forEach(c => classMap[String(c.id)] = c.name);
+    renderSearchResults(results, type, classMap);
+  } catch (err) {
+    console.error(err);
+    resultsArea.innerHTML = `<div class="search-hint" style="color:var(--danger)">❌ خطأ في البحث: ${err.message}</div>`;
+  }
+}
+
+function renderSearchResults(results, type, classMap = {}) {
+  const area = document.getElementById('search-results-area');
+  const total = (results.servants?.length || 0) + (results.students?.length || 0);
+  if (total === 0) {
+    area.innerHTML = `<div class="search-hint">لم يتم العثور على نتائج تطابق بحثك.</div>`;
+    return;
+  }
+  let html = `<div class="search-count">✅ تم العثور على ${total} نتيجة</div>`;
+  
+  if (results.servants?.length > 0) {
+    html += `<div class="search-section-title">👤 الخدام (${results.servants.length})</div>
+      <div class="table-wrap" style="margin-bottom:16px"><table aria-label="نتائج بحث الخدام">
+      <thead><tr><th style="width:40px">#</th><th>الاسم</th><th>تاريخ الميلاد</th><th>العمر</th><th>الفصل</th></tr></thead><tbody>
+      ${results.servants.map((s,i) => `
+        <tr class="clickable-row" onclick="switchTab('servants')">
+          <td>${i+1}</td><td class="td-name">${escHtml(s.name)}</td>
+          <td>${formatDateAr(s.birthDate)}</td><td>${calcAge(s.birthDate)}</td>
+          <td>${escHtml(classMap[String(s.classId)] || '—')}</td>
+        </tr>`).join('')}
+      </tbody></table></div>`;
+  }
+  
+  if (results.students?.length > 0) {
+    html += `<div class="search-section-title">🧒 المخدومون (${results.students.length})</div>
+      <div class="table-wrap"><table aria-label="نتائج بحث المخدومين">
+      <thead><tr><th style="width:40px">#</th><th>الاسم</th><th>تاريخ الميلاد</th><th>العمر</th><th>الفصل</th></tr></thead><tbody>
+      ${results.students.map((s,i) => `
+        <tr>
+          <td>${i+1}</td><td class="td-name">${escHtml(s.name)}</td>
+          <td>${formatDateAr(s.birthDate)}</td><td>${calcAge(s.birthDate)}</td>
+          <td>${escHtml(classMap[String(s.classId)] || '—')}</td>
+        </tr>`).join('')}
+      </tbody></table></div>`;
+  }
+  area.innerHTML = html;
+}
+
+// Global functions for inline HTML event handlers (e.g., onclick)
+window.switchTab = switchTab;
+window.loadStats = loadStats;

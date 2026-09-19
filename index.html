@@ -13,6 +13,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <script>
+    window.onerror = function(msg, url, line) {
+      console.error('Global JS Error:', msg, url, line);
+      var ls = document.getElementById('loading-screen');
+      if (ls) ls.style.display = 'none';
+      var app = document.getElementById('app');
+      if (app) app.style.display = 'flex';
+    };
+  </script>
 </head>
 <body>
 
@@ -47,14 +56,17 @@
       </div>
     </div>
 
+    <!-- تنبيهات أعياد الميلاد -->
+    <div id="birthday-banner" style="display:none"></div>
+
     <!-- تاريخ تسجيل الحضور -->
     <div class="attendance-date-row">
-      <span class="attendance-date-label">📅 تاريخ تسجيل الحضور:</span>
+      <label class="attendance-date-label" for="attendance-date">📅 تاريخ تسجيل الحضور:</label>
       <input type="date" id="attendance-date" title="اختر تاريخ لتسجيل الحضور">
     </div>
 
     <!-- شريط التبويبات -->
-    <nav class="tab-nav" role="tablist">
+    <nav class="tab-nav" role="tablist" aria-label="تبويبات التطبيق">
       <button class="tab-btn active" data-tab="servants" role="tab" aria-selected="true" id="tab-btn-servants">
         <span class="tab-icon">👤</span>
         <span>الخدام</span>
@@ -63,9 +75,13 @@
         <span class="tab-icon">🏫</span>
         <span>الفصول</span>
       </button>
+      <button class="tab-btn" data-tab="stats" role="tab" aria-selected="false" id="tab-btn-stats">
+        <span class="tab-icon">📊</span>
+        <span>إحصاءات</span>
+      </button>
       <button class="tab-btn" data-tab="search" role="tab" aria-selected="false" id="tab-btn-search">
         <span class="tab-icon">🔍</span>
-        <span>البحث العام</span>
+        <span>البحث</span>
       </button>
     </nav>
   </header>
@@ -76,7 +92,7 @@
     <!-- ─────────────────────────────────────
          التبويب 1: الخدام
     ───────────────────────────────────── -->
-    <section id="tab-servants" class="tab-content active" role="tabpanel">
+    <section id="tab-servants" class="tab-content active" role="tabpanel" aria-labelledby="tab-btn-servants">
       <div class="section-header">
         <h2>👤 إدارة الخدام</h2>
         <div class="header-actions">
@@ -88,7 +104,7 @@
       <!-- بحث -->
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
-        <input type="text" id="servant-search-input" placeholder="بحث بالاسم أو الفصل المسؤول...">
+        <input type="text" id="servant-search-input" placeholder="بحث بالاسم أو الفصل المسؤول..." autocomplete="off">
       </div>
 
       <!-- إحصائيات -->
@@ -109,7 +125,7 @@
 
       <!-- جدول الخدام -->
       <div class="table-wrap">
-        <table id="servants-table">
+        <table id="servants-table" aria-label="جدول الخدام">
           <thead>
             <tr>
               <th style="width:44px">#</th>
@@ -118,7 +134,7 @@
               <th>العمر</th>
               <th>الفصل المسؤول</th>
               <th>الحضور</th>
-              <th style="width:90px">إجراءات</th>
+              <th style="width:120px">إجراءات</th>
             </tr>
           </thead>
           <tbody id="servants-tbody">
@@ -136,7 +152,7 @@
     <!-- ─────────────────────────────────────
          التبويب 2: الفصول
     ───────────────────────────────────── -->
-    <section id="tab-classes" class="tab-content" role="tabpanel">
+    <section id="tab-classes" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-classes">
 
       <!-- عرض قائمة الفصول -->
       <div id="classes-list-view">
@@ -171,7 +187,7 @@
         <!-- بحث -->
         <div class="search-wrap">
           <span class="search-icon">🔍</span>
-          <input type="text" id="student-search-input" placeholder="بحث بالاسم...">
+          <input type="text" id="student-search-input" placeholder="بحث بالاسم..." autocomplete="off">
         </div>
 
         <!-- إحصائيات -->
@@ -192,7 +208,7 @@
 
         <!-- جدول المخدومين -->
         <div class="table-wrap">
-          <table id="students-table">
+          <table id="students-table" aria-label="جدول المخدومين">
             <thead>
               <tr>
                 <th style="width:44px">#</th>
@@ -201,11 +217,11 @@
                 <th>العمر</th>
                 <th>التليفون</th>
                 <th>الحضور</th>
-                <th style="width:90px">إجراءات</th>
+                <th style="width:120px">إجراءات</th>
               </tr>
             </thead>
             <tbody id="students-tbody">
-              <tr><td colspan="6">
+              <tr><td colspan="7">
                 <div class="empty-state">
                   <div class="empty-icon">🧒</div>
                   <h3>لا يوجد مخدومون بعد</h3>
@@ -218,9 +234,109 @@
     </section>
 
     <!-- ─────────────────────────────────────
-         التبويب 3: البحث العام
+         التبويب 3: الإحصاءات
     ───────────────────────────────────── -->
-    <section id="tab-search" class="tab-content" role="tabpanel">
+    <section id="tab-stats" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-stats">
+      <div class="section-header">
+        <h2>📊 لوحة الإحصاءات</h2>
+        <button class="btn btn-outline" onclick="loadStats()">🔄 تحديث</button>
+      </div>
+
+      <!-- بطاقات الإحصاء العلوية -->
+      <div class="stats-row stats-row-4">
+        <div class="stat-card">
+          <span class="stat-num" id="stat-total-students">—</span>
+          <div class="stat-label">إجمالي المخدومين</div>
+        </div>
+        <div class="stat-card sc-present">
+          <span class="stat-num" id="stat-present-today">—</span>
+          <div class="stat-label">حاضر اليوم (الكل)</div>
+        </div>
+        <div class="stat-card">
+          <span class="stat-num" id="stat-total-servants">—</span>
+          <div class="stat-label">إجمالي الخدام</div>
+        </div>
+        <div class="stat-card">
+          <span class="stat-num" id="stat-total-classes">—</span>
+          <div class="stat-label">عدد الفصول</div>
+        </div>
+      </div>
+
+      <!-- رسوم دائرية -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-title">🧒 حضور المخدومين — اليوم</div>
+          <div class="donut-wrap">
+            <div class="donut-container" id="students-donut">
+              <div style="text-align:center;color:var(--text-faint);padding:30px">اضغط تحديث لعرض البيانات</div>
+            </div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">👤 حضور الخدام — اليوم</div>
+          <div class="donut-wrap">
+            <div class="donut-container" id="servants-donut">
+              <div style="text-align:center;color:var(--text-faint);padding:30px">اضغط تحديث لعرض البيانات</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- أداء الفصول -->
+      <div class="stats-section-card">
+        <div class="stats-section-header">
+          <h3>🏫 أداء الفصول — ترتيب تنازلي بالحضور</h3>
+        </div>
+        <div class="table-wrap">
+          <table aria-label="أداء الفصول">
+            <thead>
+              <tr>
+                <th style="width:44px">#</th>
+                <th>اسم الفصل</th>
+                <th>الإجمالي</th>
+                <th>الحاضرون</th>
+                <th>نسبة الحضور</th>
+              </tr>
+            </thead>
+            <tbody id="stats-classes-tbody">
+              <tr><td colspan="5">
+                <div class="empty-state" style="padding:30px">
+                  <div class="empty-icon">📊</div>
+                  <h3>اضغط تحديث لعرض البيانات</h3>
+                </div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- لوحة الشرف -->
+      <div class="leaderboard-grid">
+        <!-- أفضل خدام -->
+        <div class="leaderboard-card">
+          <div class="leaderboard-title">🏆 أفضل الخدام حضوراً</div>
+          <div id="leaderboard-servants">
+            <div style="text-align:center;color:var(--text-faint);padding:20px;font-size:13px">
+              اضغط تحديث لعرض البيانات
+            </div>
+          </div>
+        </div>
+        <!-- أفضل مخدومين -->
+        <div class="leaderboard-card">
+          <div class="leaderboard-title">🌟 أفضل المخدومين حضوراً</div>
+          <div id="leaderboard-students">
+            <div style="text-align:center;color:var(--text-faint);padding:20px;font-size:13px">
+              اضغط تحديث لعرض البيانات
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────
+         التبويب 4: البحث العام
+    ───────────────────────────────────── -->
+    <section id="tab-search" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-search">
       <div class="section-header">
         <h2>🔍 البحث العام</h2>
       </div>
@@ -235,7 +351,7 @@
 
         <!-- لوحة البحث بالاسم -->
         <div class="search-input-panel" id="search-panel-name">
-          <input type="text" id="general-search-name" placeholder="🔍 ادخل الاسم أو جزء منه...">
+          <input type="text" id="general-search-name" placeholder="🔍 ادخل الاسم أو جزء منه..." autocomplete="off">
           <div class="search-scope-row">
             <span style="font-size:12px;color:var(--text-faint)">البحث في:</span>
             <label><input type="checkbox" id="search-scope-servants" checked> الخدام</label>
@@ -246,7 +362,7 @@
         <!-- لوحة البحث بتاريخ الميلاد -->
         <div class="search-input-panel" id="search-panel-birthdate" style="display:none">
           <input type="text" id="general-search-birthdate"
-            placeholder="أدخل جزء من تاريخ الميلاد (مثال: 1998 أو -03- أو -15)">
+            placeholder="أدخل جزء من تاريخ الميلاد (مثال: 1998 أو -03- أو -15)" autocomplete="off">
           <div style="font-size:11px;color:var(--text-faint);margin-top:4px">
             💡 مثال: "1998" يجد كل من وُلد عام 1998 | "-03-" يجد مواليد شهر مارس
           </div>
@@ -278,11 +394,11 @@
 </div><!-- /app -->
 
 <!-- ═══════════════════════════════════════
-     زر تصدير البيانات (عائم)
+     أزرار عائمة (FAB)
 ═══════════════════════════════════════ -->
-<div style="position:fixed;bottom:20px;left:16px;display:flex;flex-direction:column;gap:8px;z-index:500">
+<div class="fab-group">
   <button class="fab-export" id="export-data-btn" title="تصدير نسخة احتياطية">💾</button>
-  <label class="fab-export" style="cursor:pointer;font-size:18px" title="استيراد بيانات">
+  <label class="fab-export fab-import" title="استيراد بيانات">
     📥
     <input type="file" id="import-data-input" accept=".json" style="display:none">
   </label>
@@ -292,8 +408,8 @@
      المودالات
 ═══════════════════════════════════════ -->
 
-<!-- مودال الخادم -->
-<div class="modal-overlay" id="servant-modal" role="dialog" aria-modal="true">
+<!-- ─── مودال الخادم ─── -->
+<div class="modal-overlay" id="servant-modal" role="dialog" aria-modal="true" aria-labelledby="servant-modal-title">
   <div class="modal">
     <div class="modal-header">
       <h3 id="servant-modal-title">➕ إضافة خادم جديد</h3>
@@ -302,10 +418,12 @@
     <div class="modal-body">
       <form id="servant-form" novalidate>
         <input type="hidden" id="servant-id">
+
         <div class="form-group">
           <label for="servant-name">الاسم الكامل *</label>
           <input type="text" id="servant-name" placeholder="مثال: مريم بطرس يوسف" autocomplete="off" required>
         </div>
+
         <div class="form-row">
           <div class="form-group">
             <label for="servant-birthdate">تاريخ الميلاد</label>
@@ -313,9 +431,10 @@
           </div>
           <div class="form-group">
             <label for="servant-phone">رقم التليفون</label>
-            <input type="tel" id="servant-phone" placeholder="01xxxxxxxxx">
+            <input type="tel" id="servant-phone" placeholder="01xxxxxxxxx" autocomplete="tel">
           </div>
         </div>
+
         <div class="form-row">
           <div class="form-group">
             <label for="servant-class-select">الفصل المسؤول</label>
@@ -325,13 +444,15 @@
           </div>
           <div class="form-group">
             <label for="servant-address">العنوان</label>
-            <input type="text" id="servant-address" placeholder="المنطقة / الشارع">
+            <input type="text" id="servant-address" placeholder="المنطقة / الشارع" autocomplete="street-address">
           </div>
         </div>
+
         <div class="form-group">
           <label for="servant-notes">ملاحظات</label>
           <textarea id="servant-notes" placeholder="أي ملاحظات إضافية..."></textarea>
         </div>
+
         <div class="modal-actions">
           <button type="submit" class="btn btn-gold">💾 حفظ</button>
           <button type="button" class="btn btn-outline modal-cancel">إلغاء</button>
@@ -341,8 +462,8 @@
   </div>
 </div>
 
-<!-- مودال الفصل -->
-<div class="modal-overlay" id="class-modal" role="dialog" aria-modal="true">
+<!-- ─── مودال الفصل ─── -->
+<div class="modal-overlay" id="class-modal" role="dialog" aria-modal="true" aria-labelledby="class-modal-title">
   <div class="modal">
     <div class="modal-header">
       <h3 id="class-modal-title">➕ إضافة فصل جديد</h3>
@@ -351,18 +472,22 @@
     <div class="modal-body">
       <form id="class-form" novalidate>
         <input type="hidden" id="class-id">
+
         <div class="form-group">
           <label for="class-name">اسم الفصل *</label>
           <input type="text" id="class-name" placeholder="مثال: فصل الأبرار — المجموعة الأولى" autocomplete="off" required>
         </div>
+
         <div class="form-group">
           <label for="class-age-group">الفئة العمرية</label>
           <input type="text" id="class-age-group" placeholder="مثال: 6 — 8 سنوات">
         </div>
+
         <div class="form-group">
           <label for="class-notes">ملاحظات</label>
           <textarea id="class-notes" placeholder="أي ملاحظات عن الفصل..."></textarea>
         </div>
+
         <div class="modal-actions">
           <button type="submit" class="btn btn-gold">💾 حفظ</button>
           <button type="button" class="btn btn-outline modal-cancel">إلغاء</button>
@@ -372,8 +497,8 @@
   </div>
 </div>
 
-<!-- مودال المخدوم — حقول كاملة -->
-<div class="modal-overlay" id="student-modal" role="dialog" aria-modal="true">
+<!-- ─── مودال المخدوم — حقول كاملة ─── -->
+<div class="modal-overlay" id="student-modal" role="dialog" aria-modal="true" aria-labelledby="student-modal-title">
   <div class="modal modal-wide">
     <div class="modal-header">
       <h3 id="student-modal-title">➕ إضافة مخدوم جديد</h3>
@@ -396,7 +521,7 @@
           </div>
           <div class="form-group">
             <label for="student-phone">تليفون المخدوم</label>
-            <input type="tel" id="student-phone" placeholder="01xxxxxxxxx">
+            <input type="tel" id="student-phone" placeholder="01xxxxxxxxx" autocomplete="tel">
           </div>
         </div>
 
@@ -405,26 +530,26 @@
         <div class="form-row">
           <div class="form-group">
             <label for="student-father">اسم الأب</label>
-            <input type="text" id="student-father" placeholder="مثال: ماجد رمزي عياد">
+            <input type="text" id="student-father" placeholder="مثال: ماجد رمزي عياد" autocomplete="off">
           </div>
           <div class="form-group">
             <label for="student-father-phone">تليفون الأب</label>
-            <input type="tel" id="student-father-phone" placeholder="01xxxxxxxxx">
+            <input type="tel" id="student-father-phone" placeholder="01xxxxxxxxx" autocomplete="tel">
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="student-mother">اسم الأم</label>
-            <input type="text" id="student-mother" placeholder="مثال: مريم فهيم جرجس">
+            <input type="text" id="student-mother" placeholder="مثال: مريم فهيم جرجس" autocomplete="off">
           </div>
           <div class="form-group">
             <label for="student-mother-phone">تليفون الأم</label>
-            <input type="tel" id="student-mother-phone" placeholder="01xxxxxxxxx">
+            <input type="tel" id="student-mother-phone" placeholder="01xxxxxxxxx" autocomplete="tel">
           </div>
         </div>
         <div class="form-group">
           <label for="student-address">العنوان</label>
-          <input type="text" id="student-address" placeholder="المنطقة / الشارع / رقم المنزل">
+          <input type="text" id="student-address" placeholder="المنطقة / الشارع / رقم المنزل" autocomplete="street-address">
         </div>
 
         <!-- القسم الثالث: البيانات الدراسية والروحية -->
@@ -432,16 +557,16 @@
         <div class="form-row">
           <div class="form-group">
             <label for="student-school">اسم المدرسة</label>
-            <input type="text" id="student-school" placeholder="مثال: مدرسة الأزهر الإبتدائية">
+            <input type="text" id="student-school" placeholder="مثال: مدرسة الأزهر الابتدائية" autocomplete="off">
           </div>
           <div class="form-group">
             <label for="student-grade">الفرقة الدراسية</label>
-            <input type="text" id="student-grade" placeholder="مثال: الصف الثالث الابتدائي">
+            <input type="text" id="student-grade" placeholder="مثال: الصف الثالث الابتدائي" autocomplete="off">
           </div>
         </div>
         <div class="form-group">
           <label for="student-confession">أب الاعتراف</label>
-          <input type="text" id="student-confession" placeholder="مثال: القس بولس إبراهيم">
+          <input type="text" id="student-confession" placeholder="مثال: القس بولس إبراهيم" autocomplete="off">
         </div>
 
         <!-- ملاحظات -->
@@ -459,9 +584,21 @@
   </div>
 </div>
 
+<!-- ─── مودال سجل الحضور التاريخي ─── -->
+<div class="modal-overlay" id="history-modal" role="dialog" aria-modal="true" aria-labelledby="history-modal-title">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <h3 id="history-modal-title">📅 سجل الحضور</h3>
+      <button class="modal-close" aria-label="إغلاق">✕</button>
+    </div>
+    <div class="modal-body" id="history-modal-body" style="min-height:200px">
+      <div class="search-loading">⏳ جارٍ التحميل...</div>
+    </div>
+  </div>
+</div>
 
-<!-- مودال التأكيد -->
-<div class="modal-overlay" id="confirm-modal" role="dialog" aria-modal="true">
+<!-- ─── مودال التأكيد ─── -->
+<div class="modal-overlay" id="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
   <div class="modal" style="max-width:380px">
     <div class="modal-header">
       <h3 id="confirm-title">تأكيد</h3>
@@ -482,28 +619,19 @@
 <!-- Toast إشعارات -->
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+<!-- مؤشر الاتصال -->
+<div id="conn-indicator">⏳ جارٍ الاتصال بقاعدة البيانات...</div>
+
 <!-- ═══════════════════════════════════════
      Firebase + السكريبتات
 ═══════════════════════════════════════ -->
-
-<!-- 1. Firebase Config (type="module" لأنه يستخدم import) -->
 <script type="module" src="firebase-config.js"></script>
-
-<!-- 2. باقي الملفات (تنتظر firebase-config.js تلقائياً عبر _waitForFirebase) -->
 <script src="db.js"></script>
 <script src="pdf-export.js"></script>
 <script src="app.js"></script>
 
-<!-- مؤشر الاتصال -->
-<div id="conn-indicator" style="
-  position:fixed;top:8px;left:50%;transform:translateX(-50%);
-  padding:4px 14px;border-radius:20px;font-size:11px;font-family:Cairo,sans-serif;
-  background:rgba(0,0,0,0.7);color:#fff;z-index:9999;
-  display:none;pointer-events:none;border:1px solid rgba(255,255,255,0.15)
-">⏳ جارٍ الاتصال بقاعدة البيانات...</div>
-
 <script>
-  // إظهار مؤشر الاتصال حتى يتهيأ Firebase
+  // مؤشر الاتصال
   const ci = document.getElementById('conn-indicator');
   ci.style.display = 'block';
   const waitConn = setInterval(() => {
@@ -514,7 +642,6 @@
       clearInterval(waitConn);
     }
   }, 200);
-  // بعد 15 ثانية إذا لم يتصل
   setTimeout(() => {
     if (!window.firebaseApp) {
       ci.textContent = '❌ خطأ في الاتصال — تحقق من firebase-config.js';
@@ -522,5 +649,6 @@
     }
   }, 15000);
 </script>
+
 </body>
 </html>

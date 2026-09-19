@@ -1,5 +1,10 @@
-const CACHE_NAME = 'sunday-school-v1.0';
+/**
+ * sw.js — Service Worker
+ * مدارس الأحد — كنيسة السيدة العذراء مريم بالشامية
+ */
+const CACHE_NAME = 'sunday-school-v4';
 const ASSETS = [
+  './',
   './index.html',
   './styles.css',
   './app.js',
@@ -8,37 +13,41 @@ const ASSETS = [
   './manifest.json'
 ];
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return Promise.allSettled(ASSETS.map(asset => cache.add(asset)));
-    })
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
   );
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-      )
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
     )
   );
   self.clients.claim();
 });
 
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        if (!response || response.status !== 200) return response;
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+self.addEventListener('fetch', e => {
+  // Firebase & Google Fonts — network only
+  if (e.request.url.includes('firestore') ||
+      e.request.url.includes('firebase') ||
+      e.request.url.includes('gstatic.com') ||
+      e.request.url.includes('googleapis.com')) {
+    return;
+  }
+  // Network-First strategy
+  e.respondWith(
+    fetch(e.request)
+      .then(response => {
+        if (response && response.status === 200 && e.request.method === 'GET') {
+          const resClone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(e.request, resClone));
+        }
         return response;
-      }).catch(() => caches.match('./index.html'));
-    })
+      })
+      .catch(() => caches.match(e.request))
   );
 });
+

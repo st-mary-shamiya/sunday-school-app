@@ -193,3 +193,4 @@ class SundaySchoolDB {
 }
 
 const db = new SundaySchoolDB();
+window.db = db;
